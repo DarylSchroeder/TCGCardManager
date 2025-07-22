@@ -15,6 +15,8 @@
 - HTML/CSS/JavaScript frontend
 - Bootstrap 5 for styling
 - No database required (in-memory storage)
+- Calls to Scryfall require a User-Agent header.
+- Modular code structure for better organization and maintainability
 
 # Future Enhancements (Not Yet Implemented)
 - Local storage to persist inventory between sessions
@@ -24,4 +26,15 @@
 - Collection statistics and analytics
 
 # Efficiency features 
-- When the server starts, will pre-fetch all image resources from the https://api.scryfall.com/bulk-data endpoint for type='unique_artwork'
+- When the server starts, will pre-fetch popular card images from the Scryfall API (configurable)
+- Limited to a configurable number of cards to avoid memory issues
+- Proper error handling for API requests
+
+# Desired workflow
+- I should be able to log into TCGPlayer, and export my current inventory, which is a CSV file.
+- I should be able to upload a price list of all current magic cards. 
+- I should be able to adjust my prices (see app tcgplayer_pricing_app)
+- I should be able to import my inventory into memory of the app.
+- I should be able to type names of cards such as "Counterspell" and get a search result with cards matching.   
+- I should be able to quickly press one of the cards to add it to my inventory.
+- I should be able to download my full inventory when completed.
