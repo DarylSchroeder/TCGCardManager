@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TCG Card Manager - Simple Version</title>
+    <title>TCG Card Manager</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="js/navbar.js"></script>
     <style>
         .card-image {
             width: 100%;
@@ -75,13 +76,51 @@
             max-height: 350px; /* Explicit height to ensure scrolling works */
             flex: 1;
         }
+        .price-info {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .price-info h5 {
+            margin-bottom: 10px;
+            color: #0d6efd;
+        }
+        .price-info table {
+            width: 100%;
+        }
+        .price-info td {
+            padding: 3px 0;
+        }
+        .price-info td:first-child {
+            font-weight: bold;
+            width: 60%;
+        }
+        .price-info td:last-child {
+            text-align: right;
+        }
+        .price-info .estimated-price {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #198754;
+        }
+        .price-list-status {
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        .price-list-loaded {
+            color: #198754;
+        }
+        .price-list-error {
+            color: #dc3545;
+        }
     </style>
 </head>
 <body>
     <div class="container-fluid mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>TCG Card Manager</h1>
-            <a href="pricing.html" class="btn btn-outline-primary">Pricing Tool</a>
+            <div id="price-list-status" class="price-list-status">Loading price list...</div>
         </div>
         
         <div class="row search-and-details-row">
@@ -101,97 +140,548 @@
                             <div class="spinner-border" role="status">
                                 <span class="visually-hidden">Loading...</span>
                             </div>
+                            <p class="mt-2">Searching for cards...</p>
                         </div>
                         
                         <div id="error-message" class="alert alert-danger"></div>
                         
-                        <div id="search-results" style="overflow-y: auto; flex: 1;"></div>
+                        <div id="search-results" class="search-results-container">
+                            <p class="text-center p-3">Enter a card name to search</p>
+                        </div>
                     </div>
                 </div>
             </div>
             
             <!-- Right Column: Card Details (40%) -->
             <div class="col-md-5">
-                <div class="card h-100" id="card-details-container" style="display: none;">
+                <div class="card h-100">
                     <div class="card-header bg-primary text-white">
                         <h3>Card Details</h3>
                     </div>
-                    <div class="card-body">
-                        <div class="row g-2">
-                            <div class="col-md-5">
-                                <img id="selected-card-image" class="img-fluid" src="" alt="Selected Card">
-                            </div>
-                            <div class="col-md-7">
-                                <h4 id="selected-card-name" class="mb-1"></h4>
-                                <p id="selected-card-set" class="mb-2 text-muted"></p>
-                                
-                                <form id="inventory-form">
-                                    <div class="row g-2">
-                                        <div class="col-md-4">
-                                            <label for="quantity" class="form-label small mb-0">Quantity</label>
-                                            <input type="number" class="form-control form-control-sm" id="quantity" min="1" value="1">
-                                        </div>
-                                        <div class="col-md-8">
-                                            <label for="condition" class="form-label small mb-0">Condition</label>
-                                            <select class="form-select form-select-sm" id="condition">
-                                                <option value="Near Mint">Near Mint</option>
-                                                <option value="Lightly Played">Lightly Played</option>
-                                                <option value="Moderately Played">Moderately Played</option>
-                                                <option value="Heavily Played">Heavily Played</option>
-                                                <option value="Damaged">Damaged</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="mt-2">
-                                        <label for="price" class="form-label small mb-0">Price ($)</label>
-                                        <div class="input-group input-group-sm">
-                                            <input type="number" class="form-control" id="price" step="0.01" min="0">
-                                            <button type="button" id="add-to-inventory" class="btn btn-success">Add</button>
-                                        </div>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
+                    <div class="card-body" id="card-details-container">
+                        <p class="text-center">Select a card to view details</p>
                     </div>
                 </div>
             </div>
         </div>
         
-        <!-- Full Width: Inventory -->
-        <div class="row mt-0">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h3 class="mb-0">Inventory</h3>
-                        <button id="export-csv" class="btn btn-sm btn-primary">Export to CSV</button>
-                    </div>
-                    <div class="card-body p-0">
-                        <table id="inventory-table" class="table table-sm table-striped table-hover mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Card Name</th>
-                                    <th>Set</th>
-                                    <th>Quantity</th>
-                                    <th>Condition</th>
-                                    <th>Price</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="inventory-body">
-                            </tbody>
-                        </table>
-                    </div>
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3>Inventory</h3>
+                <button id="export-button" class="btn btn-secondary">Export to CSV</button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table id="inventory-table" class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Card Name</th>
+                                <th>Set</th>
+                                <th>Condition</th>
+                                <th>Quantity</th>
+                                <th>Price</th>
+                                <th>Total</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventory-body">
+                            <tr id="empty-inventory-row">
+                                <td colspan="7" class="text-center">No cards in inventory</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Load the image cache first if available -->
-    <script src="js/imageCache.js"></script>
-    <!-- Load the modules -->
-    <script src="js/api.js"></script>
-    <script src="js/inventory.js"></script>
-    <script src="js/ui.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/tcgPricing.js"></script>
+    <script>
+        // Global variables
+        let selectedCard = null;
+        const inventory = [];
+        let pricingService = new TCGPricingService();
+        let priceList = [];
+        
+        // DOM Elements
+        const searchInput = document.getElementById('search-input');
+        const searchButton = document.getElementById('search-button');
+        const searchResults = document.getElementById('search-results');
+        const cardDetailsContainer = document.getElementById('card-details-container');
+        const loadingIndicator = document.getElementById('loading');
+        const errorMessage = document.getElementById('error-message');
+        const inventoryBody = document.getElementById('inventory-body');
+        const exportButton = document.getElementById('export-button');
+        const priceListStatus = document.getElementById('price-list-status');
+        
+        // Load the price list when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadPriceList();
+        });
+        
+        // Function to load the price list
+        function loadPriceList() {
+            fetch('/Full_price_list_nm_lp.csv')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to load price list');
+                    }
+                    return response.text();
+                })
+                .then(csvText => {
+                    try {
+                        priceList = parsePriceListCSV(csvText);
+                        priceListStatus.textContent = `Price list loaded: ${priceList.length} cards`;
+                        priceListStatus.className = 'price-list-status price-list-loaded';
+                        console.log(`Loaded ${priceList.length} cards from price list`);
+                    } catch (error) {
+                        throw new Error('Error parsing price list: ' + error.message);
+                    }
+                })
+                .catch(error => {
+                    priceListStatus.textContent = `Error: ${error.message}`;
+                    priceListStatus.className = 'price-list-status price-list-error';
+                    console.error('Error loading price list:', error);
+                });
+        }
+        
+        // Function to parse the price list CSV
+        function parsePriceListCSV(csvText) {
+            const lines = csvText.split('\\n');
+            const headers = lines[0].split(',');
+            
+            const cards = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                
+                const values = parseCSVLine(lines[i]);
+                if (values.length !== headers.length) continue;
+                
+                const card = {
+                    tcgplayerId: values[0].replace(/"/g, ''),
+                    productLine: values[1].replace(/"/g, ''),
+                    setName: values[2].replace(/"/g, ''),
+                    productName: values[3].replace(/"/g, ''),
+                    title: values[4].replace(/"/g, ''),
+                    number: values[5].replace(/"/g, ''),
+                    rarity: values[6].replace(/"/g, ''),
+                    condition: values[7].replace(/"/g, ''),
+                    tcgMarketPrice: parseFloat(values[8]) || 0,
+                    tcgDirectLow: values[9].replace(/"/g, ''),
+                    tcgLowWithShipping: parseFloat(values[10]) || 0,
+                    tcgLowPrice: parseFloat(values[11]) || 0,
+                    totalQuantity: values[12].replace(/"/g, ''),
+                    addToQuantity: values[13].replace(/"/g, ''),
+                    tcgMarketplacePrice: values[14].replace(/"/g, ''),
+                    photoUrl: values[15].replace(/"/g, ''),
+                    
+                    // Add a method to calculate the price based on TCG pricing rules
+                    calculatePrice: function() {
+                        const marketPrice = this.tcgMarketPrice;
+                        const lowPrice = this.tcgLowPrice;
+                        const lowWithShipping = this.tcgLowWithShipping;
+                        
+                        let estimatedPrice;
+                        
+                        if (marketPrice <= 0.30) {
+                            // Cheap cards
+                            estimatedPrice = Math.max(0.50, lowPrice);
+                        } else if (marketPrice > 30) {
+                            // Expensive cards
+                            estimatedPrice = marketPrice;
+                        } else {
+                            // Standard cards
+                            const avgLowAndMarket = (lowWithShipping + marketPrice) / 2;
+                            estimatedPrice = Math.max(0.50, Math.max(lowPrice, avgLowAndMarket));
+                        }
+                        
+                        this.estimatedPrice = estimatedPrice;
+                        return estimatedPrice;
+                    }
+                };
+                
+                cards.push(card);
+            }
+            
+            return cards;
+        }
+        
+        // Helper function to parse CSV lines correctly (handling quoted values)
+        function parseCSVLine(line) {
+            const result = [];
+            let startValuePos = 0;
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+                if (line[i] === '"') {
+                    inQuotes = !inQuotes;
+                } else if (line[i] === ',' && !inQuotes) {
+                    result.push(line.substring(startValuePos, i));
+                    startValuePos = i + 1;
+                }
+            }
+            
+            // Add the last value
+            result.push(line.substring(startValuePos));
+            
+            return result;
+        }
+        
+        // Function to find a card in the price list
+        function findCardInPriceList(cardName, setName) {
+            // Try to find an exact match first
+            let matches = priceList.filter(card => 
+                card.productName.toLowerCase() === cardName.toLowerCase() && 
+                (setName ? card.setName.toLowerCase() === setName.toLowerCase() : true)
+            );
+            
+            // If no exact match, try a partial match on the card name
+            if (matches.length === 0) {
+                matches = priceList.filter(card => 
+                    card.productName.toLowerCase().includes(cardName.toLowerCase())
+                );
+            }
+            
+            return matches;
+        }
+        
+        // Event Listeners
+        searchButton.addEventListener('click', searchCards);
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchCards();
+            }
+        });
+        
+        exportButton.addEventListener('click', exportInventory);
+        
+        // Functions
+        function searchCards() {
+            const query = searchInput.value.trim();
+            if (query === '') {
+                showError('Please enter a card name');
+                return;
+            }
+            
+            showLoading();
+            hideError();
+            
+            fetch(`https://api.scryfall.com/cards/search?q=${encodeURIComponent(query)}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('No cards found');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    displaySearchResults(data.data);
+                    hideLoading();
+                })
+                .catch(error => {
+                    hideLoading();
+                    showError(error.message);
+                    searchResults.innerHTML = '<p class="text-center p-3">No cards found</p>';
+                });
+        }
+        
+        function displaySearchResults(cards) {
+            searchResults.innerHTML = '';
+            
+            cards.forEach(card => {
+                const cardElement = document.createElement('div');
+                cardElement.className = 'card-list-item';
+                cardElement.dataset.cardId = card.id;
+                
+                // Get the card image URL
+                let imageUrl = '';
+                if (card.image_uris && card.image_uris.small) {
+                    imageUrl = card.image_uris.small;
+                } else if (card.card_faces && card.card_faces[0].image_uris) {
+                    imageUrl = card.card_faces[0].image_uris.small;
+                }
+                
+                // Get the set name
+                const setName = card.set_name || '';
+                
+                cardElement.innerHTML = `
+                    <img src="${imageUrl}" alt="${card.name}" class="card-thumbnail">
+                    <div class="card-info">
+                        <div class="fw-bold">${card.name}</div>
+                        <div class="text-muted small">${setName} (${card.set.toUpperCase()}) • ${card.rarity}</div>
+                    </div>
+                `;
+                
+                cardElement.addEventListener('click', () => {
+                    // Remove selected class from all cards
+                    document.querySelectorAll('.card-list-item').forEach(el => {
+                        el.classList.remove('selected-card');
+                    });
+                    
+                    // Add selected class to this card
+                    cardElement.classList.add('selected-card');
+                    
+                    // Display card details
+                    displayCardDetails(card);
+                    
+                    // Store selected card
+                    selectedCard = card;
+                });
+                
+                searchResults.appendChild(cardElement);
+            });
+        }
+        
+        function displayCardDetails(card) {
+            // Get the card image URL
+            let imageUrl = '';
+            if (card.image_uris && card.image_uris.normal) {
+                imageUrl = card.image_uris.normal;
+            } else if (card.card_faces && card.card_faces[0].image_uris) {
+                imageUrl = card.card_faces[0].image_uris.normal;
+            }
+            
+            // Find pricing information from our price list
+            const priceMatches = findCardInPriceList(card.name, card.set_name);
+            let priceInfoHtml = '';
+            let suggestedPrice = 0;
+            
+            if (priceMatches.length > 0) {
+                // Sort by condition: Near Mint first, then Lightly Played
+                priceMatches.sort((a, b) => {
+                    if (a.condition.includes('Near Mint') && !b.condition.includes('Near Mint')) return -1;
+                    if (!a.condition.includes('Near Mint') && b.condition.includes('Near Mint')) return 1;
+                    return 0;
+                });
+                
+                // Get the first match (Near Mint if available)
+                const priceInfo = priceMatches[0];
+                
+                // Calculate the estimated price
+                priceInfo.calculatePrice();
+                suggestedPrice = priceInfo.estimatedPrice;
+                
+                priceInfoHtml = `
+                    <div class="price-info">
+                        <h5>Pricing Information (${priceInfo.condition})</h5>
+                        <table>
+                            <tr>
+                                <td>TCG Market Price:</td>
+                                <td>$${priceInfo.tcgMarketPrice.toFixed(2)}</td>
+                            </tr>
+                            <tr>
+                                <td>TCG Low Price:</td>
+                                <td>$${priceInfo.tcgLowPrice.toFixed(2)}</td>
+                            </tr>
+                            <tr>
+                                <td>TCG Low With Shipping:</td>
+                                <td>$${priceInfo.tcgLowWithShipping.toFixed(2)}</td>
+                            </tr>
+                            <tr class="estimated-price">
+                                <td>Estimated Price:</td>
+                                <td>$${priceInfo.estimatedPrice.toFixed(2)}</td>
+                            </tr>
+                        </table>
+                    </div>
+                `;
+            }
+            
+            cardDetailsContainer.innerHTML = `
+                <div class="text-center mb-3">
+                    <img src="${imageUrl}" alt="${card.name}" class="img-fluid" style="max-height: 300px;">
+                </div>
+                <h4>${card.name}</h4>
+                <p class="text-muted">${card.set_name} (${card.set.toUpperCase()}) • ${card.rarity}</p>
+                ${priceInfoHtml}
+                <div class="mt-3">
+                    <form id="add-to-inventory-form">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="quantity" class="form-label">Quantity</label>
+                                <input type="number" class="form-control" id="quantity" min="1" value="1">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="condition" class="form-label">Condition</label>
+                                <select class="form-select" id="condition">
+                                    <option value="Near Mint">Near Mint</option>
+                                    <option value="Lightly Played">Lightly Played</option>
+                                    <option value="Moderately Played">Moderately Played</option>
+                                    <option value="Heavily Played">Heavily Played</option>
+                                    <option value="Damaged">Damaged</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="price" class="form-label">Price</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="price" min="0" step="0.01" 
+                                           value="${suggestedPrice > 0 ? suggestedPrice.toFixed(2) : '0.00'}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-grid mt-3">
+                            <button type="button" class="btn btn-primary" id="add-to-inventory-btn">Add to Inventory</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            
+            // Add event listener to the Add to Inventory button
+            document.getElementById('add-to-inventory-btn').addEventListener('click', addToInventory);
+            
+            // Scroll to the top of the details container
+            cardDetailsContainer.scrollTop = 0;
+        }
+        
+        function addToInventory() {
+            if (!selectedCard) {
+                return;
+            }
+            
+            const quantity = parseInt(document.getElementById('quantity').value) || 1;
+            const condition = document.getElementById('condition').value;
+            const price = parseFloat(document.getElementById('price').value) || 0;
+            
+            // Create inventory item
+            const inventoryItem = {
+                id: Date.now(), // Use timestamp as unique ID
+                card: selectedCard,
+                quantity: quantity,
+                condition: condition,
+                price: price,
+                total: quantity * price
+            };
+            
+            // Add to inventory array
+            inventory.push(inventoryItem);
+            
+            // Update inventory table
+            updateInventoryTable();
+            
+            // Show success message
+            alert(`Added ${quantity} ${selectedCard.name} to inventory`);
+        }
+        
+        function updateInventoryTable() {
+            // Remove empty inventory row if it exists
+            const emptyRow = document.getElementById('empty-inventory-row');
+            if (emptyRow) {
+                emptyRow.remove();
+            }
+            
+            // Clear existing rows except the empty row
+            const rows = inventoryBody.querySelectorAll('tr:not(#empty-inventory-row)');
+            rows.forEach(row => row.remove());
+            
+            // Add inventory items
+            inventory.forEach(item => {
+                const row = document.createElement('tr');
+                row.dataset.id = item.id;
+                
+                // Get the card image URL
+                let imageUrl = '';
+                if (item.card.image_uris && item.card.image_uris.small) {
+                    imageUrl = item.card.image_uris.small;
+                } else if (item.card.card_faces && item.card.card_faces[0].image_uris) {
+                    imageUrl = item.card.card_faces[0].image_uris.small;
+                }
+                
+                row.innerHTML = `
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <img src="${imageUrl}" alt="${item.card.name}" class="me-2" style="width: 30px; height: 42px; object-fit: cover;">
+                            ${item.card.name}
+                        </div>
+                    </td>
+                    <td>${item.card.set_name}</td>
+                    <td>${item.condition}</td>
+                    <td>${item.quantity}</td>
+                    <td>$${item.price.toFixed(2)}</td>
+                    <td>$${item.total.toFixed(2)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger remove-btn" data-id="${item.id}">Remove</button>
+                    </td>
+                `;
+                
+                inventoryBody.appendChild(row);
+            });
+            
+            // Add event listeners to remove buttons
+            document.querySelectorAll('.remove-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const id = parseInt(this.dataset.id);
+                    removeFromInventory(id);
+                });
+            });
+            
+            // If inventory is empty, show empty message
+            if (inventory.length === 0) {
+                inventoryBody.innerHTML = `
+                    <tr id="empty-inventory-row">
+                        <td colspan="7" class="text-center">No cards in inventory</td>
+                    </tr>
+                `;
+            }
+        }
+        
+        function removeFromInventory(id) {
+            const index = inventory.findIndex(item => item.id === id);
+            if (index !== -1) {
+                inventory.splice(index, 1);
+                updateInventoryTable();
+            }
+        }
+        
+        function exportInventory() {
+            if (inventory.length === 0) {
+                alert('Inventory is empty');
+                return;
+            }
+            
+            // Create CSV content
+            const headers = ['Card Name', 'Set', 'Condition', 'Quantity', 'Price', 'Total'];
+            let csvContent = headers.join(',') + '\n';
+            
+            inventory.forEach(item => {
+                const row = [
+                    `"${item.card.name}"`,
+                    `"${item.card.set_name}"`,
+                    `"${item.condition}"`,
+                    item.quantity,
+                    item.price.toFixed(2),
+                    item.total.toFixed(2)
+                ];
+                csvContent += row.join(',') + '\n';
+            });
+            
+            // Create download link
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'inventory.csv');
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        function showLoading() {
+            loadingIndicator.style.display = 'block';
+        }
+        
+        function hideLoading() {
+            loadingIndicator.style.display = 'none';
+        }
+        
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+        
+        function hideError() {
+            errorMessage.style.display = 'none';
+        }
+    </script>
 </body>
 </html>

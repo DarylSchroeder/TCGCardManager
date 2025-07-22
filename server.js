@@ -189,6 +189,23 @@ const server = http.createServer((req, res) => {
         return;
     }
     
+    // Special case for price list CSV
+    if (req.url === '/Full_price_list_nm_lp.csv') {
+        fs.readFile(path.join(__dirname, 'Full_price_list_nm_lp.csv'), (err, data) => {
+            if (err) {
+                res.writeHead(404, { 'Content-Type': 'text/plain' });
+                res.end('Price list CSV file not found');
+            } else {
+                res.writeHead(200, { 
+                    'Content-Type': 'text/csv',
+                    'Access-Control-Allow-Origin': '*'
+                });
+                res.end(data);
+            }
+        });
+        return;
+    }
+    
     // Normalize URL
     let filePath = path.join(__dirname, req.url === '/' ? 'index.html' : req.url);
     
