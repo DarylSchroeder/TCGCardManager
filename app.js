@@ -21,6 +21,12 @@ const exportCsvButton = document.getElementById('export-csv');
 
 // Event listeners
 searchButton.addEventListener('click', searchCards);
+searchInput.addEventListener('keypress', function(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault(); // Prevent form submission if within a form
+        searchCards();
+    }
+});
 addToInventoryButton.addEventListener('click', addToInventory);
 exportCsvButton.addEventListener('click', exportToCsv);
 
