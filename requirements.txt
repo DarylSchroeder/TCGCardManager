@@ -7,6 +7,9 @@
 - Add cards to inventory with quantity, condition, and price
 - Export inventory as CSV
 
+# Search features
+- when typing a phrase, and the enter key is pressed, search automatically
+
 # Technical Requirements
 - Node.js server
 - HTML/CSS/JavaScript frontend
@@ -19,3 +22,6 @@
 - More detailed card information
 - Bulk import/export features
 - Collection statistics and analytics
+
+# Efficiency features 
+- When the server starts, will pre-fetch all image resources from the https://api.scryfall.com/bulk-data endpoint for type='unique_artwork'
