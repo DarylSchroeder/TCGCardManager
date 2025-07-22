@@ -85,6 +85,7 @@ const UI = {
         // Create the list
         const list = document.createElement('div');
         list.className = 'card-list';
+        list.style.overflowY = 'auto'; // Ensure scrolling works
         
         cards.forEach(card => {
             const listItem = document.createElement('div');
@@ -130,6 +131,11 @@ const UI = {
         resultsCount.className = 'mt-2 text-muted';
         resultsCount.textContent = `Found ${cards.length} card${cards.length !== 1 ? 's' : ''}`;
         this.searchResults.appendChild(resultsCount);
+        
+        // Force a reflow to ensure scrolling works
+        this.searchResults.style.display = 'none';
+        this.searchResults.offsetHeight; // Force reflow
+        this.searchResults.style.display = 'block';
     },
     
     /**

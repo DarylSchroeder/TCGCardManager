@@ -72,6 +72,8 @@
         }
         #search-results {
             overflow-y: auto;
+            max-height: 350px; /* Explicit height to ensure scrolling works */
+            flex: 1;
         }
     </style>
 </head>
@@ -86,7 +88,7 @@
                     <div class="card-header">
                         <h3>Card Search</h3>
                     </div>
-                    <div class="card-body d-flex flex-column">
+                    <div class="card-body" style="overflow: hidden; display: flex; flex-direction: column; height: 430px;">
                         <div class="input-group mb-3">
                             <input type="text" id="search-input" class="form-control" placeholder="Enter card name...">
                             <button id="search-button" class="btn btn-primary">Search</button>
@@ -100,7 +102,7 @@
                         
                         <div id="error-message" class="alert alert-danger"></div>
                         
-                        <div id="search-results" class="flex-grow-1 overflow-auto"></div>
+                        <div id="search-results" style="overflow-y: auto; flex: 1;"></div>
                     </div>
                 </div>
             </div>
