@@ -8,6 +8,35 @@ This is a web application for managing trading card game collections, primarily 
 - Branches:
   - main (current)
   - temp_branch
+- Recent Commits:
+  - Fix price loading for cards like Priest of Titania, improve price list handling
+  - Fix search results scrolling with explicit height and overflow settings
+  - Fix search results extending behind inventory panel
+  - Adjust layout to 60/40 split and optimize for minimal scrolling
+  - Implement two-column layout with search results on left and card details on right
+  - Update requirements.txt to reflect implemented features
+  - Improve pre-fetching functionality with configuration options and better error handling
+  - Add User-Agent header to API requests to comply with Scryfall API requirements
+- Ignored Files (via .gitignore):
+  - Node.js dependencies (node_modules/)
+  - Environment variables (.env)
+  - Log files
+  - OS generated files
+  - Backup folder
+
+## Project Structure
+- `/root/code/tcg_card_manager/` - Root directory
+  - `index.html` - Main HTML file with UI layout
+  - `server.js` - Node.js server implementation
+  - `app.js` - Main application logic
+  - `run.sh` - Script to start the server
+  - `/js/` - JavaScript modules directory
+    - `api.js` - Handles API calls to Scryfall
+    - `ui.js` - Manages UI updates and interactions
+    - `inventory.js` - Manages the card inventory
+    - `app.js` - Main application initialization
+    - `imageCache.js` - Handles caching of card images
+  - `AmazonQ.md` - Documentation of recent layout changes
 
 ## Recent Changes (July 22, 2025)
 1. **Price List Loading Improvements**:
@@ -25,56 +54,101 @@ This is a web application for managing trading card game collections, primarily 
    - Added "Update Price List" button for uploading custom price lists
    - Improved error handling and user feedback
 
-## Core Features
-1. **Card Search**:
-   - Search for cards using the Scryfall API
-   - Display search results in a compact list view
-   - Select cards to view details
+4. **Layout Changes**:
+   - Implemented a two-column layout with a 60/40 split
+   - Search results appear on the left side (60% width)
+   - Selected card details appear on the right side (40% width)
+   - Inventory table spans both columns at the bottom
+   - Fixed height for search and details row (500px)
+   - Streamlined inventory table with export button in header
 
-2. **Card Details**:
-   - Display card image, name, set, type, rarity, and text
+## Core Features
+1. Card Search
+   - Integration with Scryfall API for comprehensive card data
+   - Auto-search when pressing Enter in the search field
+   - Display search results in a compact list view with thumbnails
+   - Scrollable search results container with fixed height
+
+2. Card Details
+   - View high-quality card images
+   - Display comprehensive card information
+   - Blue header for better visibility
+   - Compact form layout for adding cards to inventory
    - Show pricing information from the price list
    - Allow adding cards to inventory with quantity, condition, and price
 
-3. **Inventory Management**:
-   - Add cards to inventory with custom quantity, condition, and price
+3. Inventory Management
+   - Add cards with quantity, condition, and price information
    - View all cards in inventory in a table format
-   - Export inventory as a CSV file
+   - Export inventory as CSV file
+   - Streamlined table with export button in header
 
-4. **Pricing Tool**:
+4. Pricing Tool
    - Calculate card prices based on TCGplayer pricing rules
    - Support for different card conditions (Near Mint, Lightly Played, etc.)
    - Price calculation based on market price, low price, and shipping
 
-## Technical Implementation
-1. **Frontend**:
-   - HTML5, CSS3 (Bootstrap 5), and vanilla JavaScript
-   - Responsive design for desktop and mobile
-   - Two-column layout for search results and card details
+## Technical Specifications
+- Frontend: HTML5, CSS3 (Bootstrap 5), Vanilla JavaScript
+- Backend: Node.js server
+- Data Storage: In-memory with localStorage for price lists
+- API Integration: Scryfall API (requires User-Agent header)
+- Architecture: Modular JavaScript with separation of concerns
 
-2. **Backend**:
-   - Node.js local server for serving static files
-   - Scryfall API for card data
-   - Local CSV price list for pricing information
+## Performance Optimizations
+- Pre-fetch popular card images on server start
+- Configurable limits to prevent memory issues
+- Caching of set data (which changes infrequently)
+- Proper error handling for API requests
+- Smaller thumbnail images for faster loading
+- Graceful fallback when localStorage quota is exceeded
 
-3. **Data Storage**:
-   - In-memory storage for current session
-   - localStorage for persisting price lists between sessions
-   - CSV export for inventory backup
+## User Workflow
+1. Search for cards by name (e.g., "Counterspell")
+2. Select a card from search results to view details
+3. Add selected card to inventory with quantity, condition, and price
+4. Export inventory as CSV when finished
 
 ## Future Enhancements
-1. **Improved Data Persistence**:
-   - Implement IndexedDB for larger storage capacity
-   - Add cloud storage options for inventory
+- Advanced filtering and sorting options
+- More detailed card information display
+- Bulk import/export features
+- Collection statistics and analytics
+- Integration with TCGPlayer for price data
+- Ability to adjust prices based on market data
+- Add sorting options for the search results (by name, set, price, etc.)
+- Implement filtering options to narrow down search results
+- Add keyboard navigation for the search results list
+- Implement a "quick add" button directly in the list view for frequently added cards
+- Implement IndexedDB for larger storage capacity
+- Add cloud storage options for inventory
 
-2. **Enhanced Search**:
-   - Add advanced search filters (color, type, rarity, etc.)
-   - Implement sorting options for search results
+## Development Workflow
+- We're working on the `main` branch for primary development
+- The `temp_branch` exists for experimental features
+- Commit changes regularly with descriptive commit messages
+- Follow the existing code structure and modular approach
+- Test changes locally before committing
+- Push to GitHub repository for backup and collaboration
 
-3. **Collection Analytics**:
-   - Add statistics and charts for collection value
-   - Track price history and changes
+## Metadata Instructions for Amazon Q
 
-4. **Bulk Operations**:
-   - Import/export features for bulk card management
-   - Batch pricing updates
+### Interaction Preferences
+- Provide concise, compact responses focused on key information
+- Omit detailed code listings unless specifically requested
+- Prioritize actionable insights and recommendations
+- Use bullet points for clarity when appropriate
+
+### Development Automation
+- Commit code changes automatically after significant modifications
+- Use descriptive commit messages that explain the purpose of changes
+- Follow the existing commit message style
+- No need to ask for permission before committing changes
+- No need to show git command outputs unless there are errors
+
+### Code Style Preferences
+- Follow existing code style and patterns
+- Maintain modular architecture
+- Add comments for complex logic
+- Prioritize readability and maintainability
+- Use consistent naming conventions
