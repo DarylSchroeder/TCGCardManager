@@ -3,6 +3,14 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
+// Configuration
+const CONFIG = {
+    // Set to false to disable pre-fetching of card images (recommended for development)
+    enablePrefetching: false,
+    // Maximum number of cards to pre-fetch (to avoid memory issues)
+    maxCardsToPrefetch: 1000
+};
+
 const PORT = 3000;
 
 const MIME_TYPES = {
@@ -101,13 +109,25 @@ async function prefetchCardImages() {
         console.log(`Fetching unique artwork data from ${downloadUri}...`);
         console.log('This may take a while due to the large file size...');
         
-        // Fetch the actual data
-        const uniqueArtwork = await fetchJson(downloadUri);
+        // Instead of fetching all cards, let's use the Scryfall search API to get a limited number
+        // This is more efficient for demonstration purposes
+        console.log(`Limiting to ${CONFIG.maxCardsToPrefetch} cards for demonstration purposes`);
         
-        console.log(`Received ${uniqueArtwork.length} cards with unique artwork`);
+        // Use the search API to get popular cards instead of the bulk data
+        const searchUrl = `https://api.scryfall.com/cards/search?q=game:paper+sort:edhrec&unique=art&order=edhrec&dir=desc`;
+        const popularCards = await fetchJson(searchUrl);
+        
+        if (!popularCards.data || !Array.isArray(popularCards.data)) {
+            throw new Error('Failed to fetch popular cards');
+        }
+        
+        // Limit the number of cards
+        const limitedCards = popularCards.data.slice(0, CONFIG.maxCardsToPrefetch);
+        
+        console.log(`Received ${limitedCards.length} popular cards`);
         
         // Store image URLs in the cache
-        uniqueArtwork.forEach(card => {
+        limitedCards.forEach(card => {
             if (card.image_uris?.normal) {
                 imageCache[card.id] = card.image_uris.normal;
             } else if (card.card_faces && card.card_faces[0].image_uris?.normal) {
@@ -186,13 +206,35 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}/`);
     
-    // Pre-fetch card images when the server starts
-    console.log('Pre-fetching card images...');
-    prefetchCardImages().catch(error => {
-        console.error('Failed to pre-fetch card images:', error);
-        console.log('Server will continue running without pre-fetched images');
+    // Pre-fetch card images when the server starts if enabled
+    if (CONFIG.enablePrefetching) {
+        console.log('Pre-fetching card images...');
+        prefetchCardImages().catch(error => {
+            console.error('Failed to pre-fetch card images:', error);
+            console.log('Server will continue running without pre-fetched images');
+            
+            // Create an empty image cache file so the client doesn't error
+            try {
+                // Ensure the js directory exists
+                const jsDir = path.join(__dirname, 'js');
+                if (!fs.existsSync(jsDir)) {
+                    fs.mkdirSync(jsDir, { recursive: true });
+                    console.log('Created js directory');
+                }
+                
+                fs.writeFileSync(
+                    path.join(jsDir, 'imageCache.js'), 
+                    'const IMAGE_CACHE = {};'
+                );
+                console.log('Created empty image cache file');
+            } catch (err) {
+                console.error('Failed to create empty image cache file:', err);
+            }
+        });
+    } else {
+        console.log('Pre-fetching is disabled in CONFIG');
         
-        // Create an empty image cache file so the client doesn't error
+        // Create an empty image cache file
         try {
             // Ensure the js directory exists
             const jsDir = path.join(__dirname, 'js');
@@ -209,5 +251,5 @@ server.listen(PORT, () => {
         } catch (err) {
             console.error('Failed to create empty image cache file:', err);
         }
-    });
+    }
 });
