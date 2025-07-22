@@ -1,0 +1,4 @@
+[ZoneTransfer]
+ZoneId=3
+ReferrerUrl=https://store.tcgplayer.com/admin/pricing
+HostUrl=https://store.tcgplayer.com/Admin/Pricing/DownloadMyExportCSV?type=Pricing

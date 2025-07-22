@@ -120,7 +120,10 @@
     <div class="container-fluid mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>TCG Card Manager</h1>
-            <div id="price-list-status" class="price-list-status">Loading price list...</div>
+            <div class="d-flex align-items-center">
+                <div id="price-list-status" class="price-list-status me-2">Loading price list...</div>
+                <button id="update-price-list" class="btn btn-outline-secondary btn-sm">Update Price List</button>
+            </div>
         </div>
         
         <div class="row search-and-details-row">
@@ -221,6 +224,23 @@
         
         // Function to load the price list
         function loadPriceList() {
+            // First try to load from localStorage if available
+            try {
+                const savedPriceList = localStorage.getItem('priceListCSV');
+                
+                if (savedPriceList) {
+                    priceList = parsePriceListCSV(savedPriceList);
+                    priceListStatus.textContent = `Price list loaded from local storage: ${priceList.length} cards`;
+                    priceListStatus.className = 'price-list-status price-list-loaded';
+                    console.log(`Loaded ${priceList.length} cards from local storage`);
+                    return;
+                }
+            } catch (error) {
+                console.error('Error accessing localStorage:', error);
+                // Continue to fetch from server if local storage access fails
+            }
+            
+            // If no saved list or access failed, fetch from server
             fetch('/Full_price_list_nm_lp.csv')
                 .then(response => {
                     if (!response.ok) {
@@ -234,6 +254,13 @@
                         priceListStatus.textContent = `Price list loaded: ${priceList.length} cards`;
                         priceListStatus.className = 'price-list-status price-list-loaded';
                         console.log(`Loaded ${priceList.length} cards from price list`);
+                        
+                        // Try to save to localStorage but don't fail if it exceeds quota
+                        try {
+                            localStorage.setItem('priceListCSV', csvText);
+                        } catch (storageError) {
+                            console.warn('Could not save price list to localStorage:', storageError.message);
+                        }
                     } catch (error) {
                         throw new Error('Error parsing price list: ' + error.message);
                     }
@@ -328,19 +355,138 @@
             return result;
         }
         
+        // Set name mapping between Scryfall and price list
+        const setNameMapping = {
+            // Modern sets
+            "modern horizons 3": ["Modern Horizons 3"],
+            "mh3": ["Modern Horizons 3"],
+            "commander legends: battle for baldur's gate": ["Commander Legends: Battle for Baldur's Gate"],
+            "clb": ["Commander Legends: Battle for Baldur's Gate"],
+            "streets of new capenna": ["Streets of New Capenna"],
+            "snc": ["Streets of New Capenna"],
+            "kamigawa: neon dynasty": ["Kamigawa: Neon Dynasty"],
+            "neo": ["Kamigawa: Neon Dynasty"],
+            "innistrad: crimson vow": ["Innistrad: Crimson Vow"],
+            "vow": ["Innistrad: Crimson Vow"],
+            "innistrad: midnight hunt": ["Innistrad: Midnight Hunt"],
+            "mid": ["Innistrad: Midnight Hunt"],
+            "adventures in the forgotten realms": ["Adventures in the Forgotten Realms"],
+            "afr": ["Adventures in the Forgotten Realms"],
+            "strixhaven: school of mages": ["Strixhaven"],
+            "stx": ["Strixhaven"],
+            "kaldheim": ["Kaldheim"],
+            "khm": ["Kaldheim"],
+            "zendikar rising": ["Zendikar Rising"],
+            "znr": ["Zendikar Rising"],
+            "ikoria: lair of behemoths": ["Ikoria"],
+            "iko": ["Ikoria"],
+            "theros beyond death": ["Theros Beyond Death"],
+            "thb": ["Theros Beyond Death"],
+            "throne of eldraine": ["Throne of Eldraine"],
+            "eld": ["Throne of Eldraine"],
+            "war of the spark": ["War of the Spark"],
+            "war": ["War of the Spark"],
+            "ravnica allegiance": ["Ravnica Allegiance"],
+            "rna": ["Ravnica Allegiance"],
+            "guilds of ravnica": ["Guilds of Ravnica"],
+            "grn": ["Guilds of Ravnica"],
+            "dominaria": ["Dominaria"],
+            "dom": ["Dominaria"],
+            
+            // Core sets
+            "core set 2021": ["Core Set 2021"],
+            "m21": ["Core Set 2021"],
+            "core set 2020": ["Core Set 2020"],
+            "m20": ["Core Set 2020"],
+            "core set 2019": ["Core Set 2019"],
+            "m19": ["Core Set 2019"],
+            
+            // Special sets
+            "the list": ["The List Reprints"],
+            "plst": ["The List Reprints"],
+            "time spiral remastered": ["Time Spiral Remastered"],
+            "tsr": ["Time Spiral Remastered"],
+            "double masters": ["Double Masters"],
+            "2xm": ["Double Masters"],
+            "double masters 2022": ["Double Masters 2022"],
+            "2x2": ["Double Masters 2022"],
+            "jumpstart": ["Jumpstart"],
+            "jmp": ["Jumpstart"],
+            "commander legends": ["Commander Legends"],
+            "cmr": ["Commander Legends"],
+            
+            // Commander sets
+            "commander 2021": ["Commander 2021"],
+            "c21": ["Commander 2021"],
+            "commander 2020": ["Commander 2020"],
+            "c20": ["Commander 2020"],
+            "commander 2019": ["Commander 2019"],
+            "c19": ["Commander 2019"],
+            "commander 2018": ["Commander 2018"],
+            "c18": ["Commander 2018"],
+            
+            // Older sets
+            "urza's saga": ["Urza's Saga"],
+            "usg": ["Urza's Saga"],
+            "world championship decks": ["World Championship Decks"],
+            "fnm promos": ["FNM Promos"],
+            "commander 2014": ["Commander 2014"],
+            "c14": ["Commander 2014"],
+            "commander anthology": ["Commander Anthology"],
+            "cma": ["Commander Anthology"]
+        };
+        
         // Function to find a card in the price list
         function findCardInPriceList(cardName, setName) {
-            // Try to find an exact match first
+            console.log(`Searching for "${cardName}" in set "${setName}"`);
+            
+            // Try to find an exact match first by name only
             let matches = priceList.filter(card => 
-                card.productName.toLowerCase() === cardName.toLowerCase() && 
-                (setName ? card.setName.toLowerCase() === setName.toLowerCase() : true)
+                card.productName.toLowerCase() === cardName.toLowerCase()
             );
+            
+            console.log(`Found ${matches.length} name matches`);
+            
+            // If we have multiple matches and a set name, try to filter by set
+            if (matches.length > 0 && setName) {
+                const setMatches = matches.filter(card => {
+                    const priceListSetName = card.setName.toLowerCase();
+                    const searchSetName = setName.toLowerCase();
+                    
+                    // Direct match
+                    if (priceListSetName === searchSetName) {
+                        return true;
+                    }
+                    // Check if the set name is in our mapping
+                    else if (setNameMapping[searchSetName] && 
+                             setNameMapping[searchSetName].some(mappedName => 
+                                mappedName.toLowerCase() === priceListSetName)) {
+                        return true;
+                    }
+                    // Handle abbreviations (e.g., "mh3" vs "Modern Horizons 3")
+                    else if (searchSetName.includes(priceListSetName) || priceListSetName.includes(searchSetName)) {
+                        return true;
+                    }
+                    // Special case for "The List Reprints" which might be labeled differently
+                    else if (searchSetName.includes("list") && priceListSetName.includes("list")) {
+                        return true;
+                    }
+                    return false;
+                });
+                
+                // If we found set matches, use those
+                if (setMatches.length > 0) {
+                    matches = setMatches;
+                    console.log(`Filtered to ${matches.length} set matches`);
+                }
+            }
             
             // If no exact match, try a partial match on the card name
             if (matches.length === 0) {
                 matches = priceList.filter(card => 
                     card.productName.toLowerCase().includes(cardName.toLowerCase())
                 );
+                console.log(`Found ${matches.length} partial matches`);
             }
             
             return matches;
@@ -367,12 +513,27 @@
             showLoading();
             hideError();
             
+            // First search for cards by name
             fetch(`https://api.scryfall.com/cards/search?q=${encodeURIComponent(query)}`)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('No cards found');
                     }
                     return response.json();
+                })
+                .then(data => {
+                    // If we only got one result and it has an oracle_id, fetch all printings
+                    if (data.data.length === 1 && data.data[0].oracle_id) {
+                        return fetch(`https://api.scryfall.com/cards/search?order=released&q=oracleid%3A${data.data[0].oracle_id}&unique=prints`)
+                            .then(response => {
+                                if (!response.ok) {
+                                    // If this fails, just use the original results
+                                    return data;
+                                }
+                                return response.json();
+                            });
+                    }
+                    return data;
                 })
                 .then(data => {
                     displaySearchResults(data.data);
@@ -433,6 +594,8 @@
         }
         
         function displayCardDetails(card) {
+            console.log("Displaying card details:", card);
+            
             // Get the card image URL
             let imageUrl = '';
             if (card.image_uris && card.image_uris.normal) {
@@ -443,6 +606,8 @@
             
             // Find pricing information from our price list
             const priceMatches = findCardInPriceList(card.name, card.set_name);
+            console.log("Price matches:", priceMatches);
+            
             let priceInfoHtml = '';
             let suggestedPrice = 0;
             
@@ -482,6 +647,13 @@
                                 <td>$${priceInfo.estimatedPrice.toFixed(2)}</td>
                             </tr>
                         </table>
+                    </div>
+                `;
+            } else {
+                priceInfoHtml = `
+                    <div class="price-info alert alert-warning">
+                        <h5>No pricing information available</h5>
+                        <p>This card was not found in the price list.</p>
                     </div>
                 `;
             }
@@ -682,6 +854,52 @@
         function hideError() {
             errorMessage.style.display = 'none';
         }
+        
+        // Update price list button
+        document.getElementById('update-price-list').addEventListener('click', function() {
+            // Create a file input element
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.csv';
+            
+            // When a file is selected
+            fileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const csvText = e.target.result;
+                    try {
+                        priceList = parsePriceListCSV(csvText);
+                        priceListStatus.textContent = `Price list updated: ${priceList.length} cards`;
+                        priceListStatus.className = 'price-list-status price-list-loaded';
+                        console.log(`Updated price list with ${priceList.length} cards`);
+                        
+                        // If a card is currently selected, update its price information
+                        if (selectedCard) {
+                            displayCardDetails(selectedCard);
+                        }
+                        
+                        // Try to save to localStorage but don't fail if it exceeds quota
+                        try {
+                            localStorage.setItem('priceListCSV', csvText);
+                        } catch (storageError) {
+                            console.warn('Could not save price list to localStorage (likely exceeded quota):', storageError.message);
+                            priceListStatus.textContent = `Price list updated: ${priceList.length} cards (not saved to local storage - file too large)`;
+                        }
+                    } catch (error) {
+                        priceListStatus.textContent = `Error: ${error.message}`;
+                        priceListStatus.className = 'price-list-status price-list-error';
+                        console.error('Error parsing price list:', error);
+                    }
+                };
+                reader.readAsText(file);
+            });
+            
+            // Trigger the file input click
+            fileInput.click();
+        });
     </script>
 </body>
 </html>
