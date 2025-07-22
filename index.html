@@ -52,98 +52,119 @@
             text-align: right;
         }
         .search-results-container {
-            max-height: 500px;
+            max-height: 600px;
             overflow-y: auto;
             border: 1px solid #dee2e6;
             border-radius: 0.25rem;
         }
+        #card-details-container {
+            height: calc(100% - 1rem);
+            margin-bottom: 1rem;
+        }
+        .sticky-top-custom {
+            position: sticky;
+            top: 20px;
+        }
     </style>
 </head>
 <body>
-    <div class="container mt-4">
+    <div class="container-fluid mt-4">
         <h1>TCG Card Manager</h1>
         
-        <div class="card mb-4">
-            <div class="card-header">
-                <h3>Card Search</h3>
-            </div>
-            <div class="card-body">
-                <div class="input-group mb-3">
-                    <input type="text" id="search-input" class="form-control" placeholder="Enter card name...">
-                    <button id="search-button" class="btn btn-primary">Search</button>
-                </div>
-                
-                <div id="loading" class="text-center">
-                    <div class="spinner-border" role="status">
-                        <span class="visually-hidden">Loading...</span>
+        <div class="row">
+            <!-- Left Column: Card Search -->
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3>Card Search</h3>
                     </div>
-                </div>
-                
-                <div id="error-message" class="alert alert-danger"></div>
-                
-                <div id="search-results" class="row"></div>
-            </div>
-        </div>
-        
-        <div class="card mb-4" id="card-details-container" style="display: none;">
-            <div class="card-header bg-primary text-white">
-                <h3>Card Details</h3>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4">
-                        <img id="selected-card-image" class="img-fluid" src="" alt="Selected Card">
-                    </div>
-                    <div class="col-md-8">
-                        <h4 id="selected-card-name"></h4>
-                        <p id="selected-card-set"></p>
+                    <div class="card-body">
+                        <div class="input-group mb-3">
+                            <input type="text" id="search-input" class="form-control" placeholder="Enter card name...">
+                            <button id="search-button" class="btn btn-primary">Search</button>
+                        </div>
                         
-                        <form id="inventory-form">
-                            <div class="mb-3">
-                                <label for="quantity" class="form-label">Quantity</label>
-                                <input type="number" class="form-control" id="quantity" min="1" value="1">
+                        <div id="loading" class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
                             </div>
-                            <div class="mb-3">
-                                <label for="condition" class="form-label">Condition</label>
-                                <select class="form-select" id="condition">
-                                    <option value="Near Mint">Near Mint</option>
-                                    <option value="Lightly Played">Lightly Played</option>
-                                    <option value="Moderately Played">Moderately Played</option>
-                                    <option value="Heavily Played">Heavily Played</option>
-                                    <option value="Damaged">Damaged</option>
-                                </select>
+                        </div>
+                        
+                        <div id="error-message" class="alert alert-danger"></div>
+                        
+                        <div id="search-results"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Column: Card Details -->
+            <div class="col-md-6">
+                <div class="card mb-4" id="card-details-container" style="display: none;">
+                    <div class="card-header bg-primary text-white">
+                        <h3>Card Details</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-5">
+                                <img id="selected-card-image" class="img-fluid" src="" alt="Selected Card">
                             </div>
-                            <div class="mb-3">
-                                <label for="price" class="form-label">Price ($)</label>
-                                <input type="number" class="form-control" id="price" step="0.01" min="0">
+                            <div class="col-md-7">
+                                <h4 id="selected-card-name"></h4>
+                                <p id="selected-card-set"></p>
+                                
+                                <form id="inventory-form">
+                                    <div class="mb-3">
+                                        <label for="quantity" class="form-label">Quantity</label>
+                                        <input type="number" class="form-control" id="quantity" min="1" value="1">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="condition" class="form-label">Condition</label>
+                                        <select class="form-select" id="condition">
+                                            <option value="Near Mint">Near Mint</option>
+                                            <option value="Lightly Played">Lightly Played</option>
+                                            <option value="Moderately Played">Moderately Played</option>
+                                            <option value="Heavily Played">Heavily Played</option>
+                                            <option value="Damaged">Damaged</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="price" class="form-label">Price ($)</label>
+                                        <input type="number" class="form-control" id="price" step="0.01" min="0">
+                                    </div>
+                                    <button type="button" id="add-to-inventory" class="btn btn-success">Add to Inventory</button>
+                                </form>
                             </div>
-                            <button type="button" id="add-to-inventory" class="btn btn-success">Add to Inventory</button>
-                        </form>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
         
-        <div class="card">
-            <div class="card-header">
-                <h3>Inventory</h3>
-            </div>
-            <div class="card-body">
-                <table id="inventory-table" class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>Card Name</th>
-                            <th>Set</th>
-                            <th>Quantity</th>
-                            <th>Condition</th>
-                            <th>Price</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="inventory-body">
-                    </tbody>
-                </table>
-                <button id="export-csv" class="btn btn-primary">Export to CSV</button>
+        <!-- Full Width: Inventory -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Inventory</h3>
+                    </div>
+                    <div class="card-body">
+                        <table id="inventory-table" class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Card Name</th>
+                                    <th>Set</th>
+                                    <th>Quantity</th>
+                                    <th>Condition</th>
+                                    <th>Price</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventory-body">
+                            </tbody>
+                        </table>
+                        <button id="export-csv" class="btn btn-primary">Export to CSV</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

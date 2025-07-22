@@ -68,8 +68,7 @@ const App = {
         document.getElementById('selected-card-name').textContent = this.selectedCard.name;
         document.getElementById('selected-card-set').textContent = `${this.selectedCard.setName} (${this.selectedCard.set}) • ${this.selectedCard.rarity}`;
         
-        // Scroll to the card details container
-        cardDetailsContainer.scrollIntoView({ behavior: 'smooth' });
+        // No need to scroll in the two-column layout
     },
     
     /**
