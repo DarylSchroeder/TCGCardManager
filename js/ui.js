@@ -82,10 +82,6 @@ const UI = {
             return;
         }
         
-        // Create a container for the list view with scrolling
-        const listContainer = document.createElement('div');
-        listContainer.className = 'search-results-container';
-        
         // Create the list
         const list = document.createElement('div');
         list.className = 'card-list';
@@ -127,8 +123,7 @@ const UI = {
             list.appendChild(listItem);
         });
         
-        listContainer.appendChild(list);
-        this.searchResults.appendChild(listContainer);
+        this.searchResults.appendChild(list);
         
         // Show the number of results
         const resultsCount = document.createElement('p');

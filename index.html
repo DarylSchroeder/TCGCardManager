@@ -51,14 +51,18 @@
             min-width: 100px;
             text-align: right;
         }
+        .search-and-details-row {
+            height: 500px;
+            margin-bottom: 20px;
+        }
         .search-results-container {
-            height: 650px;
             overflow-y: auto;
             border: 1px solid #dee2e6;
             border-radius: 0.25rem;
         }
         #card-details-container {
-            height: calc(100% - 1rem);
+            height: 450px;
+            overflow-y: auto;
             margin-bottom: 1rem;
         }
         .sticky-top-custom {
@@ -71,14 +75,14 @@
     <div class="container-fluid mt-4">
         <h1>TCG Card Manager</h1>
         
-        <div class="row">
+        <div class="row search-and-details-row">
             <!-- Left Column: Card Search (60%) -->
             <div class="col-md-7">
-                <div class="card mb-4">
+                <div class="card h-100">
                     <div class="card-header">
                         <h3>Card Search</h3>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body d-flex flex-column">
                         <div class="input-group mb-3">
                             <input type="text" id="search-input" class="form-control" placeholder="Enter card name...">
                             <button id="search-button" class="btn btn-primary">Search</button>
@@ -92,14 +96,14 @@
                         
                         <div id="error-message" class="alert alert-danger"></div>
                         
-                        <div id="search-results"></div>
+                        <div id="search-results" class="flex-grow-1 overflow-auto"></div>
                     </div>
                 </div>
             </div>
             
             <!-- Right Column: Card Details (40%) -->
             <div class="col-md-5">
-                <div class="card mb-4" id="card-details-container" style="display: none;">
+                <div class="card h-100" id="card-details-container" style="display: none;">
                     <div class="card-header bg-primary text-white">
                         <h3>Card Details</h3>
                     </div>

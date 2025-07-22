@@ -43,7 +43,6 @@
 - Search results now appear on the left side (60% width)
 - Selected card details appear on the right side (40% width)
 - Inventory table spans both columns at the bottom
-- Removed automatic scrolling as it's no longer needed with side-by-side view
-- Increased search results container height to 650px
-- Made card details form more compact with smaller controls and 2-column layout
+- Fixed height for search and details row (500px) to prevent pushing inventory off screen
+- Used flex layout to ensure proper content distribution
 - Streamlined inventory table with smaller padding and moved export button to header
