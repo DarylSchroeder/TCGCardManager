@@ -10,7 +10,11 @@ const API = {
      */
     searchCards: async function(cardName) {
         try {
-            const response = await fetch(`https://api.scryfall.com/cards/search?q=${encodeURIComponent(cardName)}&unique=prints`);
+            const response = await fetch(`https://api.scryfall.com/cards/search?q=${encodeURIComponent(cardName)}&unique=prints`, {
+                headers: {
+                    'User-Agent': 'TCGCardManager/1.0 (https://github.com/DarylSchroeder/TCGCardManager)'
+                }
+            });
             return await response.json();
         } catch (error) {
             console.error('Error searching for cards:', error);
@@ -24,7 +28,11 @@ const API = {
      */
     getBulkData: async function() {
         try {
-            const response = await fetch('https://api.scryfall.com/bulk-data');
+            const response = await fetch('https://api.scryfall.com/bulk-data', {
+                headers: {
+                    'User-Agent': 'TCGCardManager/1.0 (https://github.com/DarylSchroeder/TCGCardManager)'
+                }
+            });
             return await response.json();
         } catch (error) {
             console.error('Error fetching bulk data info:', error);
@@ -53,7 +61,11 @@ const API = {
             
             // Fetch the actual data
             console.log(`Fetching unique artwork data from ${downloadUri}...`);
-            const response = await fetch(downloadUri);
+            const response = await fetch(downloadUri, {
+                headers: {
+                    'User-Agent': 'TCGCardManager/1.0 (https://github.com/DarylSchroeder/TCGCardManager)'
+                }
+            });
             return await response.json();
         } catch (error) {
             console.error('Error fetching unique artwork data:', error);

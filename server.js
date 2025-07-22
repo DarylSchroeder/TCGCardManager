@@ -29,7 +29,14 @@ function fetchJson(url) {
     return new Promise((resolve, reject) => {
         console.log(`Fetching data from ${url}...`);
         
-        https.get(url, (res) => {
+        // Set up request options with a proper User-Agent
+        const options = {
+            headers: {
+                'User-Agent': 'TCGCardManager/1.0 (https://github.com/DarylSchroeder/TCGCardManager)'
+            }
+        };
+        
+        https.get(url, options, (res) => {
             let data = '';
             
             // Log response status
