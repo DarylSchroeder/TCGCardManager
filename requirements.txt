@@ -1,0 +1,21 @@
+# TCG Card Manager Requirements
+# Version 1.0
+
+# Core Features
+- Search for cards using Scryfall API
+- Display card images and details
+- Add cards to inventory with quantity, condition, and price
+- Export inventory as CSV
+
+# Technical Requirements
+- Node.js server
+- HTML/CSS/JavaScript frontend
+- Bootstrap 5 for styling
+- No database required (in-memory storage)
+
+# Future Enhancements (Not Yet Implemented)
+- Local storage to persist inventory between sessions
+- Filtering and sorting options for search results
+- More detailed card information
+- Bulk import/export features
+- Collection statistics and analytics
