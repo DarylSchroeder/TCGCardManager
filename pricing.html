@@ -45,6 +45,12 @@
         .active-sort {
             background-color: #e9ecef;
         }
+        .quantity-input {
+            width: 70px;
+            min-width: 60px;
+            padding: 2px 5px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -235,6 +241,12 @@
             
             exportBtn.addEventListener('click', function() {
                 try {
+                    // Log all card quantities before export
+                    console.log('Card quantities before export:');
+                    pricingService.cards.forEach(card => {
+                        console.log(`${card.productName}: ${card.totalQuantity}`);
+                    });
+                    
                     const csvContent = pricingService.exportToCSV();
                     downloadCSV(csvContent, 'updated_inventory.csv');
                     showStatus('CSV exported successfully', 'success');
@@ -328,6 +340,7 @@
                 
                 cards.forEach(card => {
                     const row = document.createElement('tr');
+                    row.dataset.cardId = card.tcgplayerId;
                     
                     // Check if price changed
                     const priceChanged = card.estimatedPrice !== null && 
@@ -341,7 +354,12 @@
                         <td>${card.productName}</td>
                         <td>${card.setName}</td>
                         <td>${card.condition}</td>
-                        <td>${card.totalQuantity}</td>
+                        <td>
+                            <input type="number" class="form-control form-control-sm quantity-input" 
+                                   value="${card.totalQuantity}" min="0" 
+                                   data-card-id="${card.tcgplayerId}" 
+                                   onchange="updateCardQuantity(this, '${card.tcgplayerId}')">
+                        </td>
                         <td>$${card.tcgMarketPrice.toFixed(2)}</td>
                         <td>$${card.tcgLowPrice.toFixed(2)}</td>
                         <td>$${card.tcgLowWithShipping.toFixed(2)}</td>
@@ -375,6 +393,39 @@
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
+            }
+            
+            // Function to update card quantity when input changes
+            function updateCardQuantity(input, cardId) {
+                const newQuantity = parseInt(input.value) || 0;
+                
+                console.log(`Updating card with ID ${cardId} to quantity ${newQuantity}`);
+                
+                // Find the card in the pricing service
+                const cardIndex = pricingService.cards.findIndex(c => c.tcgplayerId === cardId);
+                if (cardIndex !== -1) {
+                    const card = pricingService.cards[cardIndex];
+                    console.log(`Found card: ${card.productName}, current quantity: ${card.totalQuantity}`);
+                    
+                    // Update the quantity directly
+                    card.totalQuantity = newQuantity;
+                    
+                    // Also update the input field to ensure consistency
+                    input.value = newQuantity;
+                    
+                    console.log(`Updated quantity to: ${card.totalQuantity}`);
+                    
+                    // Update statistics
+                    updateStats();
+                    
+                    // Mark that changes have been made
+                    if (!exportBtn.disabled) {
+                        showStatus('Quantity updated. Don\'t forget to export your changes.', 'info');
+                    }
+                } else {
+                    console.error(`Card with ID ${cardId} not found`);
+                    console.log('Available card IDs:', pricingService.cards.map(c => c.tcgplayerId));
+                }
             }
         });
     </script>

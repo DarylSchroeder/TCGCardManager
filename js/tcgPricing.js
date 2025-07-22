@@ -28,7 +28,7 @@ class TCGCard {
         this.tcgMarketplacePrice = parseFloat(data.tcgMarketplacePrice) || 0;
         
         // Inventory info
-        this.totalQuantity = parseInt(data.totalQuantity) || 0;
+        this.totalQuantity = typeof data.totalQuantity === 'number' ? data.totalQuantity : parseInt(data.totalQuantity) || 0;
         this.addToQuantity = parseInt(data.addToQuantity) || 0;
         
         // Additional info
@@ -113,6 +113,7 @@ class TCGCard {
                     values[header] = `"${this.tcgLowPrice}"`;
                     break;
                 case 'Total Quantity':
+                    console.log(`Exporting ${this.productName} with quantity: ${this.totalQuantity}`);
                     values[header] = `"${this.totalQuantity}"`;
                     break;
                 case 'Add to Quantity':
@@ -192,7 +193,13 @@ class CSVParser {
                     if (value.startsWith('"') && value.endsWith('"')) {
                         value = value.substring(1, value.length - 1).replace(/""/g, '"');
                     }
-                    cardData[this.normalizeHeaderName(header)] = value;
+                    
+                    // Special handling for Total Quantity to ensure it's parsed as an integer
+                    if (header === 'Total Quantity') {
+                        cardData[this.normalizeHeaderName(header)] = parseInt(value) || 0;
+                    } else {
+                        cardData[this.normalizeHeaderName(header)] = value;
+                    }
                 });
                 
                 const card = new TCGCard(cardData);
@@ -261,6 +268,7 @@ class TCGPricingService {
     }
     
     exportToCSV() {
+        console.log('Exporting cards with quantities:', this.cards.map(c => `${c.productName}: ${c.totalQuantity}`));
         return CSVParser.generateCSV(this.headers, this.cards);
     }
     
