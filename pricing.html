@@ -19,6 +19,31 @@
         .stats-card {
             border-left: 4px solid #0d6efd;
         }
+        .sortable {
+            cursor: pointer;
+            position: relative;
+            user-select: none;
+        }
+        .sortable:hover {
+            background-color: #e9ecef;
+        }
+        .sort-icon::after {
+            content: "⇵";
+            opacity: 0.3;
+            margin-left: 5px;
+            font-size: 0.8em;
+        }
+        .sort-asc .sort-icon::after {
+            content: "↑";
+            opacity: 1;
+        }
+        .sort-desc .sort-icon::after {
+            content: "↓";
+            opacity: 1;
+        }
+        .active-sort {
+            background-color: #e9ecef;
+        }
     </style>
 </head>
 <body>
@@ -82,15 +107,15 @@
                     <table class="table table-striped table-hover mb-0">
                         <thead class="sticky-top bg-light">
                             <tr>
-                                <th>Card Name</th>
-                                <th>Set</th>
-                                <th>Condition</th>
-                                <th>Qty</th>
-                                <th>Market Price</th>
-                                <th>Low Price</th>
-                                <th>Low w/ Shipping</th>
-                                <th>Original Price</th>
-                                <th>Calculated Price</th>
+                                <th class="sortable" data-sort="name">Card Name <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="set">Set <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="condition">Condition <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="quantity">Qty <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="marketPrice">Market Price <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="lowPrice">Low Price <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="lowShipping">Low w/ Shipping <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="originalPrice">Original Price <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="calculatedPrice">Calculated Price <span class="sort-icon"></span></th>
                             </tr>
                         </thead>
                         <tbody id="card-table-body">
@@ -131,6 +156,40 @@
             const totalCardsElement = document.getElementById('total-cards');
             const totalValueElement = document.getElementById('total-value');
             
+            // Sorting state
+            let currentSort = {
+                column: 'name', // Default sort by name
+                direction: 'asc'
+            };
+            
+            // Add event listeners to sortable headers
+            document.querySelectorAll('th.sortable').forEach(header => {
+                header.addEventListener('click', function() {
+                    const column = this.dataset.sort;
+                    
+                    // Update sort direction
+                    if (currentSort.column === column) {
+                        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        currentSort.column = column;
+                        currentSort.direction = 'asc';
+                    }
+                    
+                    // Update UI to show sort direction
+                    document.querySelectorAll('th.sortable').forEach(th => {
+                        th.classList.remove('sort-asc', 'sort-desc', 'active-sort');
+                    });
+                    
+                    this.classList.add('active-sort');
+                    this.classList.add(currentSort.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+                    
+                    // Re-render the table with the new sort
+                    if (pricingService.cards.length > 0) {
+                        updateCardTable(sortCards(pricingService.cards));
+                    }
+                });
+            });
+            
             importBtn.addEventListener('click', function() {
                 const file = csvFileInput.files[0];
                 if (!file) {
@@ -145,11 +204,15 @@
                         const cardCount = pricingService.loadFromCSV(csvText);
                         
                         showStatus(`Successfully imported ${cardCount} cards`, 'success');
-                        updateCardTable(pricingService.cards);
+                        updateCardTable(sortCards(pricingService.cards));
                         updateStats();
                         
                         calculateBtn.disabled = false;
                         exportBtn.disabled = true;
+                        
+                        // Set initial sort on name column
+                        const nameHeader = document.querySelector('th[data-sort="name"]');
+                        nameHeader.classList.add('active-sort', 'sort-asc');
                     } catch (error) {
                         showStatus(`Error importing CSV: ${error.message}`, 'danger');
                     }
@@ -160,7 +223,7 @@
             calculateBtn.addEventListener('click', function() {
                 try {
                     pricingService.calculatePrices();
-                    updateCardTable(pricingService.cards);
+                    updateCardTable(sortCards(pricingService.cards));
                     updateStats();
                     showStatus('Prices calculated successfully', 'success');
                     exportBtn.disabled = false;
@@ -182,6 +245,76 @@
             function showStatus(message, type) {
                 importStatus.textContent = message;
                 importStatus.className = `alert alert-${type}`;
+            }
+            
+            function sortCards(cards) {
+                const sortedCards = [...cards];
+                
+                sortedCards.sort((a, b) => {
+                    let valueA, valueB;
+                    
+                    // Extract the values to compare based on the current sort column
+                    switch (currentSort.column) {
+                        case 'name':
+                            valueA = a.productName.toLowerCase();
+                            valueB = b.productName.toLowerCase();
+                            break;
+                        case 'set':
+                            valueA = a.setName.toLowerCase();
+                            valueB = b.setName.toLowerCase();
+                            break;
+                        case 'condition':
+                            valueA = a.condition.toLowerCase();
+                            valueB = b.condition.toLowerCase();
+                            break;
+                        case 'quantity':
+                            valueA = a.totalQuantity;
+                            valueB = b.totalQuantity;
+                            break;
+                        case 'marketPrice':
+                            valueA = a.tcgMarketPrice;
+                            valueB = b.tcgMarketPrice;
+                            break;
+                        case 'lowPrice':
+                            valueA = a.tcgLowPrice;
+                            valueB = b.tcgLowPrice;
+                            break;
+                        case 'lowShipping':
+                            valueA = a.tcgLowWithShipping;
+                            valueB = b.tcgLowWithShipping;
+                            break;
+                        case 'originalPrice':
+                            valueA = a.tcgMarketplacePrice;
+                            valueB = b.tcgMarketplacePrice;
+                            break;
+                        case 'calculatedPrice':
+                            valueA = a.estimatedPrice !== null ? a.estimatedPrice : a.tcgMarketplacePrice;
+                            valueB = b.estimatedPrice !== null ? b.estimatedPrice : b.tcgMarketplacePrice;
+                            break;
+                        default:
+                            valueA = a.productName.toLowerCase();
+                            valueB = b.productName.toLowerCase();
+                    }
+                    
+                    // Compare the values
+                    if (valueA < valueB) {
+                        return currentSort.direction === 'asc' ? -1 : 1;
+                    }
+                    if (valueA > valueB) {
+                        return currentSort.direction === 'asc' ? 1 : -1;
+                    }
+                    
+                    // If values are equal, use card name as secondary sort
+                    if (currentSort.column !== 'name') {
+                        const nameA = a.productName.toLowerCase();
+                        const nameB = b.productName.toLowerCase();
+                        return nameA.localeCompare(nameB);
+                    }
+                    
+                    return 0;
+                });
+                
+                return sortedCards;
             }
             
             function updateCardTable(cards) {
