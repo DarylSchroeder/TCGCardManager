@@ -39,9 +39,11 @@
 - Add keyboard navigation for the search results list
 - Implement a "quick add" button directly in the list view for frequently added cards
 ### 4. Two-Column Layout (new)
-- Restructured the UI into a two-column layout
-- Search results now appear on the left side
-- Selected card details appear on the right side
+- Restructured the UI into a two-column layout with 60/40 split (search/details)
+- Search results now appear on the left side (60% width)
+- Selected card details appear on the right side (40% width)
 - Inventory table spans both columns at the bottom
 - Removed automatic scrolling as it's no longer needed with side-by-side view
-- Increased search results container height to 600px
+- Increased search results container height to 650px
+- Made card details form more compact with smaller controls and 2-column layout
+- Streamlined inventory table with smaller padding and moved export button to header

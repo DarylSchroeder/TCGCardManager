@@ -52,7 +52,7 @@
             text-align: right;
         }
         .search-results-container {
-            max-height: 600px;
+            height: 650px;
             overflow-y: auto;
             border: 1px solid #dee2e6;
             border-radius: 0.25rem;
@@ -72,8 +72,8 @@
         <h1>TCG Card Manager</h1>
         
         <div class="row">
-            <!-- Left Column: Card Search -->
-            <div class="col-md-6">
+            <!-- Left Column: Card Search (60%) -->
+            <div class="col-md-7">
                 <div class="card mb-4">
                     <div class="card-header">
                         <h3>Card Search</h3>
@@ -97,41 +97,45 @@
                 </div>
             </div>
             
-            <!-- Right Column: Card Details -->
-            <div class="col-md-6">
+            <!-- Right Column: Card Details (40%) -->
+            <div class="col-md-5">
                 <div class="card mb-4" id="card-details-container" style="display: none;">
                     <div class="card-header bg-primary text-white">
                         <h3>Card Details</h3>
                     </div>
                     <div class="card-body">
-                        <div class="row">
+                        <div class="row g-2">
                             <div class="col-md-5">
                                 <img id="selected-card-image" class="img-fluid" src="" alt="Selected Card">
                             </div>
                             <div class="col-md-7">
-                                <h4 id="selected-card-name"></h4>
-                                <p id="selected-card-set"></p>
+                                <h4 id="selected-card-name" class="mb-1"></h4>
+                                <p id="selected-card-set" class="mb-2 text-muted"></p>
                                 
                                 <form id="inventory-form">
-                                    <div class="mb-3">
-                                        <label for="quantity" class="form-label">Quantity</label>
-                                        <input type="number" class="form-control" id="quantity" min="1" value="1">
+                                    <div class="row g-2">
+                                        <div class="col-md-4">
+                                            <label for="quantity" class="form-label small mb-0">Quantity</label>
+                                            <input type="number" class="form-control form-control-sm" id="quantity" min="1" value="1">
+                                        </div>
+                                        <div class="col-md-8">
+                                            <label for="condition" class="form-label small mb-0">Condition</label>
+                                            <select class="form-select form-select-sm" id="condition">
+                                                <option value="Near Mint">Near Mint</option>
+                                                <option value="Lightly Played">Lightly Played</option>
+                                                <option value="Moderately Played">Moderately Played</option>
+                                                <option value="Heavily Played">Heavily Played</option>
+                                                <option value="Damaged">Damaged</option>
+                                            </select>
+                                        </div>
                                     </div>
-                                    <div class="mb-3">
-                                        <label for="condition" class="form-label">Condition</label>
-                                        <select class="form-select" id="condition">
-                                            <option value="Near Mint">Near Mint</option>
-                                            <option value="Lightly Played">Lightly Played</option>
-                                            <option value="Moderately Played">Moderately Played</option>
-                                            <option value="Heavily Played">Heavily Played</option>
-                                            <option value="Damaged">Damaged</option>
-                                        </select>
+                                    <div class="mt-2">
+                                        <label for="price" class="form-label small mb-0">Price ($)</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control" id="price" step="0.01" min="0">
+                                            <button type="button" id="add-to-inventory" class="btn btn-success">Add</button>
+                                        </div>
                                     </div>
-                                    <div class="mb-3">
-                                        <label for="price" class="form-label">Price ($)</label>
-                                        <input type="number" class="form-control" id="price" step="0.01" min="0">
-                                    </div>
-                                    <button type="button" id="add-to-inventory" class="btn btn-success">Add to Inventory</button>
                                 </form>
                             </div>
                         </div>
@@ -144,11 +148,12 @@
         <div class="row">
             <div class="col-12">
                 <div class="card">
-                    <div class="card-header">
-                        <h3>Inventory</h3>
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0">Inventory</h3>
+                        <button id="export-csv" class="btn btn-sm btn-primary">Export to CSV</button>
                     </div>
-                    <div class="card-body">
-                        <table id="inventory-table" class="table table-striped">
+                    <div class="card-body p-0">
+                        <table id="inventory-table" class="table table-sm table-striped table-hover mb-0">
                             <thead>
                                 <tr>
                                     <th>Card Name</th>
@@ -162,7 +167,6 @@
                             <tbody id="inventory-body">
                             </tbody>
                         </table>
-                        <button id="export-csv" class="btn btn-primary">Export to CSV</button>
                     </div>
                 </div>
             </div>
