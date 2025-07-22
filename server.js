@@ -22,7 +22,8 @@ const MIME_TYPES = {
     '.jpg': 'image/jpg',
     '.gif': 'image/gif',
     '.svg': 'image/svg+xml',
-    '.ico': 'image/x-icon'
+    '.ico': 'image/x-icon',
+    '.csv': 'text/csv'
 };
 
 // Cache for storing pre-fetched image data
@@ -170,6 +171,24 @@ const server = http.createServer((req, res) => {
         return;
     }
     
+    // Special case for current-pricing.csv
+    if (req.url === '/current-pricing.csv') {
+        fs.readFile(path.join(__dirname, 'CURRENT_PRICING.csv'), (err, data) => {
+            if (err) {
+                res.writeHead(404, { 'Content-Type': 'text/plain' });
+                res.end('CSV file not found');
+            } else {
+                res.writeHead(200, { 
+                    'Content-Type': 'text/csv',
+                    'Content-Disposition': 'attachment; filename="current-pricing.csv"',
+                    'Access-Control-Allow-Origin': '*'
+                });
+                res.end(data);
+            }
+        });
+        return;
+    }
+    
     // Normalize URL
     let filePath = path.join(__dirname, req.url === '/' ? 'index.html' : req.url);
     
@@ -205,6 +224,10 @@ const server = http.createServer((req, res) => {
 // Start the server
 server.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}/`);
+    console.log(`TCG Card Manager available at http://localhost:${PORT}/`);
+    console.log(`TCG Pricing Tool available at http://localhost:${PORT}/pricing.html`);
+    console.log(`TCG Card Manager available at http://localhost:${PORT}/`);
+    console.log(`TCG Pricing Tool available at http://localhost:${PORT}/pricing.html`);
     
     // Pre-fetch card images when the server starts if enabled
     if (CONFIG.enablePrefetching) {

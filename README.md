@@ -8,6 +8,7 @@ A simple web application for managing your trading card game collection.
 - View card details and images
 - Add cards to your inventory with quantity, condition, and price
 - Export your inventory as a CSV file
+- Price calculation tool based on TCGplayer pricing rules
 
 ## Getting Started
 
@@ -35,9 +36,18 @@ A simple web application for managing your trading card game collection.
 ## How to Use
 
 1. **Search for Cards**: Enter a card name in the search box and click "Search"
-2. **Select a Card**: Click the "Select" button on a card to view its details
+2. **Select a Card**: Click on a card in the search results to view its details
 3. **Add to Inventory**: Enter quantity, condition, and price, then click "Add to Inventory"
 4. **Export Inventory**: Click "Export to CSV" to download your inventory as a CSV file
+5. **Pricing Tool**: Click "Pricing Tool" to access the TCG pricing calculator
+
+## Pricing Rules
+
+The pricing tool follows these rules:
+- No card can be priced less than $0.50
+- Standard cards ($0.30 - $30) are priced as max($0.50, max(TCG Low Price, average of TCG Low With Shipping and TCG Market Price))
+- Cheap cards (market price <= $0.30) are priced as max($0.50, TCG Low Price)
+- Expensive cards (market price > $30) keep their original price
 
 ## Technologies Used
 

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TCG Card Pricing Tool</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .card-pricing {
+            font-size: 0.9rem;
+        }
+        .price-changed {
+            background-color: #e8f4f8;
+        }
+        .table-container {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .stats-card {
+            border-left: 4px solid #0d6efd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <h1 class="mb-4">TCG Card Pricing Tool</h1>
+        
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Import Inventory</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="csv-file" class="form-label">Select CSV File</label>
+                            <input class="form-control" type="file" id="csv-file" accept=".csv">
+                        </div>
+                        <div class="mb-3">
+                            <button id="import-btn" class="btn btn-primary">Import</button>
+                        </div>
+                        <div id="import-status" class="alert alert-info d-none"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card stats-card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Inventory Statistics</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Total Cards</label>
+                                    <h3 id="total-cards">0</h3>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Total Value</label>
+                                    <h3 id="total-value">$0.00</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button id="calculate-btn" class="btn btn-success" disabled>Calculate Prices</button>
+                            <button id="export-btn" class="btn btn-secondary" disabled>Export Updated CSV</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Card Inventory</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-container">
+                    <table class="table table-striped table-hover mb-0">
+                        <thead class="sticky-top bg-light">
+                            <tr>
+                                <th>Card Name</th>
+                                <th>Set</th>
+                                <th>Condition</th>
+                                <th>Qty</th>
+                                <th>Market Price</th>
+                                <th>Low Price</th>
+                                <th>Low w/ Shipping</th>
+                                <th>Original Price</th>
+                                <th>Calculated Price</th>
+                            </tr>
+                        </thead>
+                        <tbody id="card-table-body">
+                            <tr>
+                                <td colspan="9" class="text-center">Import a CSV file to view cards</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Pricing Rules</h5>
+            </div>
+            <div class="card-body">
+                <ul>
+                    <li><strong>Minimum Price:</strong> No card can be priced less than $0.50</li>
+                    <li><strong>Standard Cards ($0.30 - $30):</strong> max($0.50, max(TCG Low Price, average of TCG Low With Shipping and TCG Market Price))</li>
+                    <li><strong>Cheap Cards (≤ $0.30):</strong> max($0.50, TCG Low Price)</li>
+                    <li><strong>Expensive Cards (> $30):</strong> Keep original price</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/tcgPricing.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const pricingService = new TCGPricingService();
+            const importBtn = document.getElementById('import-btn');
+            const calculateBtn = document.getElementById('calculate-btn');
+            const exportBtn = document.getElementById('export-btn');
+            const csvFileInput = document.getElementById('csv-file');
+            const importStatus = document.getElementById('import-status');
+            const cardTableBody = document.getElementById('card-table-body');
+            const totalCardsElement = document.getElementById('total-cards');
+            const totalValueElement = document.getElementById('total-value');
+            
+            importBtn.addEventListener('click', function() {
+                const file = csvFileInput.files[0];
+                if (!file) {
+                    showStatus('Please select a CSV file', 'danger');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const csvText = e.target.result;
+                        const cardCount = pricingService.loadFromCSV(csvText);
+                        
+                        showStatus(`Successfully imported ${cardCount} cards`, 'success');
+                        updateCardTable(pricingService.cards);
+                        updateStats();
+                        
+                        calculateBtn.disabled = false;
+                        exportBtn.disabled = true;
+                    } catch (error) {
+                        showStatus(`Error importing CSV: ${error.message}`, 'danger');
+                    }
+                };
+                reader.readAsText(file);
+            });
+            
+            calculateBtn.addEventListener('click', function() {
+                try {
+                    pricingService.calculatePrices();
+                    updateCardTable(pricingService.cards);
+                    updateStats();
+                    showStatus('Prices calculated successfully', 'success');
+                    exportBtn.disabled = false;
+                } catch (error) {
+                    showStatus(`Error calculating prices: ${error.message}`, 'danger');
+                }
+            });
+            
+            exportBtn.addEventListener('click', function() {
+                try {
+                    const csvContent = pricingService.exportToCSV();
+                    downloadCSV(csvContent, 'updated_inventory.csv');
+                    showStatus('CSV exported successfully', 'success');
+                } catch (error) {
+                    showStatus(`Error exporting CSV: ${error.message}`, 'danger');
+                }
+            });
+            
+            function showStatus(message, type) {
+                importStatus.textContent = message;
+                importStatus.className = `alert alert-${type}`;
+            }
+            
+            function updateCardTable(cards) {
+                if (cards.length === 0) {
+                    cardTableBody.innerHTML = '<tr><td colspan="9" class="text-center">No cards found</td></tr>';
+                    return;
+                }
+                
+                cardTableBody.innerHTML = '';
+                
+                cards.forEach(card => {
+                    const row = document.createElement('tr');
+                    
+                    // Check if price changed
+                    const priceChanged = card.estimatedPrice !== null && 
+                                        card.estimatedPrice !== card.tcgMarketplacePrice;
+                    
+                    if (priceChanged) {
+                        row.classList.add('price-changed');
+                    }
+                    
+                    row.innerHTML = `
+                        <td>${card.productName}</td>
+                        <td>${card.setName}</td>
+                        <td>${card.condition}</td>
+                        <td>${card.totalQuantity}</td>
+                        <td>$${card.tcgMarketPrice.toFixed(2)}</td>
+                        <td>$${card.tcgLowPrice.toFixed(2)}</td>
+                        <td>$${card.tcgLowWithShipping.toFixed(2)}</td>
+                        <td>$${card.tcgMarketplacePrice.toFixed(2)}</td>
+                        <td class="fw-bold ${priceChanged ? 'text-primary' : ''}">
+                            ${card.estimatedPrice !== null ? '$' + card.estimatedPrice.toFixed(2) : '-'}
+                        </td>
+                    `;
+                    
+                    cardTableBody.appendChild(row);
+                });
+            }
+            
+            function updateStats() {
+                const cardCount = pricingService.getCardCount();
+                const totalValue = pricingService.getTotalValue();
+                
+                totalCardsElement.textContent = cardCount;
+                totalValueElement.textContent = '$' + totalValue.toFixed(2);
+            }
+            
+            function downloadCSV(csvContent, filename) {
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                
+                link.setAttribute('href', url);
+                link.setAttribute('download', filename);
+                link.style.visibility = 'hidden';
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        });
+    </script>
+</body>
+</html>
