@@ -27,8 +27,13 @@ const imageCache = {};
  */
 function fetchJson(url) {
     return new Promise((resolve, reject) => {
+        console.log(`Fetching data from ${url}...`);
+        
         https.get(url, (res) => {
             let data = '';
+            
+            // Log response status
+            console.log(`Response status: ${res.statusCode} ${res.statusMessage}`);
             
             res.on('data', (chunk) => {
                 data += chunk;
@@ -36,13 +41,22 @@ function fetchJson(url) {
             
             res.on('end', () => {
                 try {
+                    console.log(`Received ${data.length} bytes of data`);
+                    
+                    // For debugging, log a small sample of the response
+                    if (data.length > 0) {
+                        console.log(`Sample of response: ${data.substring(0, 200)}...`);
+                    }
+                    
                     const jsonData = JSON.parse(data);
                     resolve(jsonData);
                 } catch (error) {
+                    console.error('Error parsing JSON:', error);
                     reject(error);
                 }
             });
         }).on('error', (error) => {
+            console.error(`Error fetching data from ${url}:`, error);
             reject(error);
         });
     });
@@ -58,10 +72,19 @@ async function prefetchCardImages() {
         // Get bulk data information
         const bulkData = await fetchJson('https://api.scryfall.com/bulk-data');
         
+        console.log('Received bulk data:', JSON.stringify(bulkData).substring(0, 200) + '...');
+        
         // Find the unique artwork data
+        // Check if bulkData has the expected structure
+        if (!bulkData || !bulkData.data) {
+            console.error('Unexpected bulk data format:', bulkData);
+            throw new Error('Bulk data does not have the expected format');
+        }
+        
         const uniqueArtworkData = bulkData.data.find(item => item.type === 'unique_artwork');
         
         if (!uniqueArtworkData) {
+            console.error('Available bulk data types:', bulkData.data.map(item => item.type));
             throw new Error('Unique artwork data not found');
         }
         
@@ -87,9 +110,16 @@ async function prefetchCardImages() {
         
         console.log(`Cached ${Object.keys(imageCache).length} card images`);
         
+        // Ensure the js directory exists
+        const jsDir = path.join(__dirname, 'js');
+        if (!fs.existsSync(jsDir)) {
+            fs.mkdirSync(jsDir, { recursive: true });
+            console.log('Created js directory');
+        }
+        
         // Create a file to store the image cache
         fs.writeFileSync(
-            path.join(__dirname, 'js', 'imageCache.js'), 
+            path.join(jsDir, 'imageCache.js'), 
             `const IMAGE_CACHE = ${JSON.stringify(imageCache)};`
         );
         
@@ -151,5 +181,26 @@ server.listen(PORT, () => {
     
     // Pre-fetch card images when the server starts
     console.log('Pre-fetching card images...');
-    prefetchCardImages();
+    prefetchCardImages().catch(error => {
+        console.error('Failed to pre-fetch card images:', error);
+        console.log('Server will continue running without pre-fetched images');
+        
+        // Create an empty image cache file so the client doesn't error
+        try {
+            // Ensure the js directory exists
+            const jsDir = path.join(__dirname, 'js');
+            if (!fs.existsSync(jsDir)) {
+                fs.mkdirSync(jsDir, { recursive: true });
+                console.log('Created js directory');
+            }
+            
+            fs.writeFileSync(
+                path.join(jsDir, 'imageCache.js'), 
+                'const IMAGE_CACHE = {};'
+            );
+            console.log('Created empty image cache file');
+        } catch (err) {
+            console.error('Failed to create empty image cache file:', err);
+        }
+    });
 });
