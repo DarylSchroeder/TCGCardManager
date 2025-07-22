@@ -1,0 +1,111 @@
+# TCG Card Manager - Project Overview and Requirements
+
+## Project Context
+This is a web application for managing trading card game collections, primarily focused on Magic: The Gathering cards. The application allows users to search for cards, view details, add them to inventory, and export the inventory as a CSV file.
+
+## Version Control
+- GitHub Repository: https://github.com/DarylSchroeder/TCGCardManager.git
+- Branches:
+  - main (current)
+  - temp_branch
+- Recent Commits:
+  - Update requirements.txt to reflect implemented features
+  - Improve pre-fetching functionality with configuration options and better error handling
+  - Add User-Agent header to API requests to comply with Scryfall API requirements
+  - Fix error in pre-fetching card images and add better error handling
+  - Implement pre-fetching of card images and restructure code into modules
+- Ignored Files (via .gitignore):
+  - Node.js dependencies (node_modules/)
+  - Environment variables (.env)
+  - Log files
+  - OS generated files
+  - Backup folder
+
+## Project Structure
+- `/root/code/tcg_card_manager/` - Root directory
+  - `index.html` - Main HTML file with UI layout
+  - `server.js` - Node.js server implementation
+  - `app.js` - Main application logic
+  - `run.sh` - Script to start the server
+  - `/js/` - JavaScript modules directory
+    - `api.js` - Handles API calls to Scryfall
+    - `ui.js` - Manages UI updates and interactions
+    - `inventory.js` - Manages the card inventory
+    - `app.js` - Main application initialization
+    - `imageCache.js` - Handles caching of card images
+  - `AmazonQ.md` - Documentation of recent layout changes
+
+## Recent Changes
+We've recently restructured the layout from a grid of large card images to a more compact list view with thumbnails. This improves efficiency by showing more cards at once and reduces loading time by using smaller images.
+
+## Core Features
+1. Card Search
+   - Integration with Scryfall API for comprehensive card data
+   - Auto-search when pressing Enter in the search field
+   - Display search results in a compact list view with thumbnails
+
+2. Card Details
+   - View high-quality card images
+   - Display comprehensive card information
+   - Blue header for better visibility
+
+3. Inventory Management
+   - Add cards with quantity, condition, and price information
+   - View all cards in inventory in a table format
+   - Export inventory as CSV file
+
+## Technical Specifications
+- Frontend: HTML5, CSS3 (Bootstrap 5), Vanilla JavaScript
+- Backend: Node.js server
+- Data Storage: In-memory (no database)
+- API Integration: Scryfall API (requires User-Agent header)
+- Architecture: Modular JavaScript with separation of concerns
+
+## Performance Optimizations
+- Pre-fetch popular card images on server start
+- Configurable limits to prevent memory issues
+- Caching of set data (which changes infrequently)
+- Proper error handling for API requests
+
+## User Workflow
+1. Search for cards by name (e.g., "Counterspell")
+2. Select a card from search results to view details
+3. Add selected card to inventory with quantity, condition, and price
+4. Export inventory as CSV when finished
+
+## Future Enhancements
+- Local storage for persistent inventory between sessions
+- Advanced filtering and sorting options
+- More detailed card information display
+- Bulk import/export features
+- Collection statistics and analytics
+- Integration with TCGPlayer for price data
+- Ability to adjust prices based on market data
+## Development Workflow
+- We're working on the `main` branch for primary development
+- The `temp_branch` exists for experimental features
+- Commit changes regularly with descriptive commit messages
+- Follow the existing code structure and modular approach
+- Test changes locally before committing
+- Push to GitHub repository for backup and collaboration
+## Metadata Instructions for Amazon Q
+
+### Interaction Preferences
+- Provide concise, compact responses focused on key information
+- Omit detailed code listings unless specifically requested
+- Prioritize actionable insights and recommendations
+- Use bullet points for clarity when appropriate
+
+### Development Automation
+- Commit code changes automatically after significant modifications
+- Use descriptive commit messages that explain the purpose of changes
+- Follow the existing commit message style
+- No need to ask for permission before committing changes
+- No need to show git command outputs unless there are errors
+
+### Code Style Preferences
+- Follow existing code style and patterns
+- Maintain modular architecture
+- Add comments for complex logic
+- Prioritize readability and maintainability
+- Use consistent naming conventions

@@ -59,8 +59,17 @@ const App = {
             imageUrl: card.image_uris?.normal || card.card_faces?.[0].image_uris?.normal || 'https://via.placeholder.com/265x370?text=No+Image'
         };
         
-        // Display the card details
-        UI.displayCardDetails(this.selectedCard);
+        // Show the card details container
+        const cardDetailsContainer = document.getElementById('card-details-container');
+        cardDetailsContainer.style.display = 'block';
+        
+        // Set the card details
+        document.getElementById('selected-card-image').src = this.selectedCard.imageUrl;
+        document.getElementById('selected-card-name').textContent = this.selectedCard.name;
+        document.getElementById('selected-card-set').textContent = `${this.selectedCard.setName} (${this.selectedCard.set}) • ${this.selectedCard.rarity}`;
+        
+        // Scroll to the card details container
+        cardDetailsContainer.scrollIntoView({ behavior: 'smooth' });
     },
     
     /**

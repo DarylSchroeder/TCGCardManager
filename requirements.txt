@@ -29,6 +29,7 @@
 - When the server starts, will pre-fetch popular card images from the Scryfall API (configurable)
 - Limited to a configurable number of cards to avoid memory issues
 - Proper error handling for API requests
+- Sets are released infrequently.   Cache these results in the server. 
 
 # Desired workflow
 - I should be able to log into TCGPlayer, and export my current inventory, which is a CSV file.
@@ -38,3 +39,4 @@
 - I should be able to type names of cards such as "Counterspell" and get a search result with cards matching.   
 - I should be able to quickly press one of the cards to add it to my inventory.
 - I should be able to download my full inventory when completed.
+

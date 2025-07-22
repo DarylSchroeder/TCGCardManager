@@ -22,9 +22,40 @@
         }
         .selected-card {
             border: 3px solid #007bff;
+            background-color: #e6f2ff;
         }
         #inventory-table {
             margin-top: 30px;
+        }
+        .card-list-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+        .card-list-item:hover {
+            background-color: #f0f7ff;
+        }
+        .card-thumbnail {
+            width: 60px;
+            height: 84px;
+            object-fit: cover;
+            margin-right: 15px;
+        }
+        .card-info {
+            flex-grow: 1;
+        }
+        .card-actions {
+            min-width: 100px;
+            text-align: right;
+        }
+        .search-results-container {
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
         }
     </style>
 </head>
@@ -55,7 +86,7 @@
         </div>
         
         <div class="card mb-4" id="card-details-container" style="display: none;">
-            <div class="card-header">
+            <div class="card-header bg-primary text-white">
                 <h3>Card Details</h3>
             </div>
             <div class="card-body">

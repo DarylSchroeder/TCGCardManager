@@ -82,33 +82,59 @@ const UI = {
             return;
         }
         
-        const row = document.createElement('div');
-        row.className = 'row';
+        // Create a container for the list view with scrolling
+        const listContainer = document.createElement('div');
+        listContainer.className = 'search-results-container';
+        
+        // Create the list
+        const list = document.createElement('div');
+        list.className = 'card-list';
         
         cards.forEach(card => {
-            const col = document.createElement('div');
-            col.className = 'col-md-4 mb-4';
+            const listItem = document.createElement('div');
+            listItem.className = 'card-list-item';
+            listItem.style.cursor = 'pointer';
             
-            col.innerHTML = `
-                <div class="card">
-                    <img src="${card.image_uris?.normal || card.card_faces?.[0].image_uris?.normal || 'https://via.placeholder.com/265x370?text=No+Image'}" class="card-img-top" alt="${card.name}">
-                    <div class="card-body">
-                        <h5 class="card-title">${card.name}</h5>
-                        <p class="card-text">${card.set_name} (${card.set})</p>
-                        <button class="btn btn-primary select-card" data-card-id="${card.id}">Select</button>
-                    </div>
+            // Get the small image URL (if available) or use the normal size as fallback
+            const imageUrl = card.image_uris?.small || 
+                             card.image_uris?.normal || 
+                             card.card_faces?.[0].image_uris?.small || 
+                             card.card_faces?.[0].image_uris?.normal || 
+                             'https://via.placeholder.com/146x204?text=No+Image';
+            
+            listItem.innerHTML = `
+                <img src="${imageUrl}" class="card-thumbnail" alt="${card.name}">
+                <div class="card-info">
+                    <h5 class="mb-1">${card.name}</h5>
+                    <p class="mb-0 text-muted">${card.set_name} (${card.set}) • ${card.rarity}</p>
                 </div>
             `;
             
-            const selectButton = col.querySelector('.select-card');
-            selectButton.addEventListener('click', () => {
+            // Make the entire row clickable
+            listItem.addEventListener('click', () => {
+                // Remove selected class from all items
+                document.querySelectorAll('.card-list-item').forEach(item => {
+                    item.classList.remove('selected-card');
+                });
+                
+                // Add selected class to this item
+                listItem.classList.add('selected-card');
+                
+                // Select the card
                 App.selectCard(card);
             });
             
-            row.appendChild(col);
+            list.appendChild(listItem);
         });
         
-        this.searchResults.appendChild(row);
+        listContainer.appendChild(list);
+        this.searchResults.appendChild(listContainer);
+        
+        // Show the number of results
+        const resultsCount = document.createElement('p');
+        resultsCount.className = 'mt-2 text-muted';
+        resultsCount.textContent = `Found ${cards.length} card${cards.length !== 1 ? 's' : ''}`;
+        this.searchResults.appendChild(resultsCount);
     },
     
     /**
