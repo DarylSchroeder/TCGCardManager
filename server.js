@@ -240,11 +240,9 @@ const server = http.createServer((req, res) => {
 
 // Start the server
 server.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}/`);
-    console.log(`TCG Card Manager available at http://localhost:${PORT}/`);
-    console.log(`TCG Pricing Tool available at http://localhost:${PORT}/pricing.html`);
-    console.log(`TCG Card Manager available at http://localhost:${PORT}/`);
-    console.log(`TCG Pricing Tool available at http://localhost:${PORT}/pricing.html`);
+    console.log(`🚀 Server running at http://localhost:${PORT}/`);
+    console.log(`📋 TCG Card Manager: http://localhost:${PORT}/`);
+    console.log(`💰 TCG Pricing Tool: http://localhost:${PORT}/pricing.html`);
     
     // Pre-fetch card images when the server starts if enabled
     if (CONFIG.enablePrefetching) {

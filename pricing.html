@@ -400,7 +400,17 @@
         // Global function to update card quantity when input changes
         // Must be global so inline onchange handlers can access it
         function updateCardQuantity(input, cardId) {
-            const newQuantity = parseInt(input.value) || 0;
+            // Input validation with bounds checking
+            let newQuantity = parseInt(input.value) || 0;
+            
+            // Enforce reasonable bounds (0 to 9999)
+            if (newQuantity < 0) {
+                newQuantity = 0;
+                input.value = 0;
+            } else if (newQuantity > 9999) {
+                newQuantity = 9999;
+                input.value = 9999;
+            }
             
             // Remove any surrounding quotes from cardId (fix for HTML template issue)
             const cleanCardId = cardId.replace(/^['"]|['"]$/g, '');
