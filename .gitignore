@@ -2,12 +2,18 @@
 tmp/
 temp/
 
-# User data
-*.csv
-!test/data/*.csv
+# User data - exclude personal inventory but keep example/test data
+# *.csv
+# !test/data/*.csv
 
 # Node modules
 node_modules/
+
+# Backup directories
+backup/
+
+# Windows metadata files
+*:Zone.Identifier
 
 # Logs
 *.log
