@@ -32,6 +32,20 @@ else
 fi
 
 echo ""
+echo "🔧 Running Function Scope Integration Test..."
+echo "--------------------------------------------"
+
+# Run the new integration test for function scope
+if node test/quantity-update-integration.test.js; then
+    echo ""
+    echo "✅ Function Scope Integration: PASSED"
+else
+    echo ""
+    echo "❌ Function Scope Integration: FAILED"
+    exit 1
+fi
+
+echo ""
 echo "🎯 Testing Real-World Scenario..."
 echo "--------------------------------"
 
@@ -72,8 +86,10 @@ echo "  • Quote handling in HTML template parameters"
 echo "  • Card lookup with various ID formats"
 echo "  • Quantity update persistence"
 echo "  • Error handling for edge cases"
+echo "  • Function scope and global accessibility"
 echo "  • Integration with sample CSV data"
 echo ""
 echo "To run tests manually:"
 echo "  node test/quantity-update-simple.test.js"
+echo "  node test/quantity-update-integration.test.js"
 echo ""

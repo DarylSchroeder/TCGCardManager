@@ -154,6 +154,8 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const pricingService = new TCGPricingService();
+            // Make pricingService globally accessible for updateCardQuantity function
+            window.pricingService = pricingService;
             const importBtn = document.getElementById('import-btn');
             const calculateBtn = document.getElementById('calculate-btn');
             const exportBtn = document.getElementById('export-btn');
@@ -241,12 +243,7 @@
             
             exportBtn.addEventListener('click', function() {
                 try {
-                    // Log all card quantities before export
-                    console.log('Card quantities before export:');
-                    pricingService.cards.forEach(card => {
-                        console.log(`${card.productName}: ${card.totalQuantity}`);
-                    });
-                    
+                    // Export to CSV (logging removed for cleaner console)
                     const csvContent = pricingService.exportToCSV();
                     downloadCSV(csvContent, 'updated_inventory.csv');
                     showStatus('CSV exported successfully', 'success');
@@ -381,6 +378,9 @@
                 totalValueElement.textContent = '$' + totalValue.toFixed(2);
             }
             
+            // Make updateStats globally accessible for updateCardQuantity function
+            window.updateStats = updateStats;
+            
             function downloadCSV(csvContent, filename) {
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const link = document.createElement('a');
@@ -395,42 +395,52 @@
                 document.body.removeChild(link);
             }
             
-            // Function to update card quantity when input changes
-            function updateCardQuantity(input, cardId) {
-                const newQuantity = parseInt(input.value) || 0;
-                
-                // Remove any surrounding quotes from cardId (fix for HTML template issue)
-                const cleanCardId = cardId.replace(/^['"]|['"]$/g, '');
-                
-                console.log(`Updating card with ID ${cleanCardId} to quantity ${newQuantity}`);
-                
-                // Find the card in the pricing service
-                const cardIndex = pricingService.cards.findIndex(c => c.tcgplayerId === cleanCardId);
-                if (cardIndex !== -1) {
-                    const card = pricingService.cards[cardIndex];
-                    console.log(`Found card: ${card.productName}, current quantity: ${card.totalQuantity}`);
-                    
-                    // Update the quantity directly
-                    card.totalQuantity = newQuantity;
-                    
-                    // Also update the input field to ensure consistency
-                    input.value = newQuantity;
-                    
-                    console.log(`Updated quantity to: ${card.totalQuantity}`);
-                    
-                    // Update statistics
-                    updateStats();
-                    
-                    // Mark that changes have been made
-                    if (!exportBtn.disabled) {
-                        showStatus('Quantity updated. Don\'t forget to export your changes.', 'info');
-                    }
-                } else {
-                    console.error(`Card with ID ${cardId} not found`);
-                    console.log('Available card IDs:', pricingService.cards.map(c => c.tcgplayerId));
-                }
-            }
         });
+        
+        // Global function to update card quantity when input changes
+        // Must be global so inline onchange handlers can access it
+        function updateCardQuantity(input, cardId) {
+            const newQuantity = parseInt(input.value) || 0;
+            
+            // Remove any surrounding quotes from cardId (fix for HTML template issue)
+            const cleanCardId = cardId.replace(/^['"]|['"]$/g, '');
+            
+            // Find the card in the pricing service - need to access global instance
+            const pricingService = window.pricingService;
+            if (!pricingService) {
+                console.error('Pricing service not available');
+                return;
+            }
+            
+            // Find the card in the pricing service
+            const cardIndex = pricingService.cards.findIndex(c => c.tcgplayerId === cleanCardId);
+            if (cardIndex !== -1) {
+                const card = pricingService.cards[cardIndex];
+                
+                // Update the quantity directly
+                card.totalQuantity = newQuantity;
+                
+                // Also update the input field to ensure consistency
+                input.value = newQuantity;
+                
+                // Update statistics - need to call global function
+                if (window.updateStats) {
+                    window.updateStats();
+                }
+                
+                // Mark that changes have been made
+                const exportBtn = document.getElementById('export-btn');
+                if (exportBtn && !exportBtn.disabled) {
+                    const importStatus = document.getElementById('import-status');
+                    if (importStatus) {
+                        importStatus.textContent = 'Quantity updated. Don\'t forget to export your changes.';
+                        importStatus.className = 'alert alert-info';
+                    }
+                }
+            } else {
+                console.error(`Card with ID ${cardId} not found`);
+            }
+        }
     </script>
 </body>
 </html>

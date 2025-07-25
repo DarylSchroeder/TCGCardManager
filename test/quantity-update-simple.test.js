@@ -17,8 +17,8 @@ function extractUpdateCardQuantityFunction() {
     const pricingHtmlPath = path.join(__dirname, '../pricing.html');
     const pricingHtml = fs.readFileSync(pricingHtmlPath, 'utf8');
     
-    // Find the function definition
-    const functionMatch = pricingHtml.match(/function updateCardQuantity\(input, cardId\) \{[\s\S]*?\n            \}/);
+    // Find the function definition - updated regex to match current format
+    const functionMatch = pricingHtml.match(/function updateCardQuantity\(input, cardId\) \{[\s\S]*?\n        \}/);
     if (!functionMatch) {
         throw new Error('Could not extract updateCardQuantity function from pricing.html');
     }
@@ -39,6 +39,21 @@ function createTestEnvironment() {
             const updateStats = testEnv.updateStats;
             const showStatus = testEnv.showStatus;
             const console = testEnv.console;
+            
+            // Mock window object for the global function
+            const window = {
+                pricingService: pricingService,
+                updateStats: updateStats
+            };
+            
+            // Mock document.getElementById for the function
+            const document = {
+                getElementById: (id) => {
+                    if (id === 'export-btn') return exportBtn;
+                    if (id === 'import-status') return testEnv.importStatus;
+                    return null;
+                }
+            };
             
             ${functionCode}
             
