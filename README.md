@@ -1,41 +1,73 @@
 # TCG Card Manager
 
-A simple web application for managing your trading card game collection.
+A comprehensive web application for managing your trading card game collection with advanced pricing tools and inventory management.
 
 ## Features
 
-- Search for cards using the Scryfall API
-- View card details and images
-- Add cards to your inventory with quantity, condition, and price
-- Export your inventory as a CSV file
-- Price calculation tool based on TCGplayer pricing rules
+### Core Functionality
+- **Card Search**: Search for cards using the Scryfall API with auto-search on Enter
+- **Card Details**: View high-quality card images and comprehensive information
+- **Inventory Management**: Add cards with quantity, condition, and price tracking
+- **CSV Export/Import**: Export inventory and import price lists
+- **Pricing Tool**: Advanced TCG pricing calculator with market-based rules
+
+### Advanced Features
+- **Price List Integration**: Upload and manage custom price lists with localStorage caching
+- **Two-Column Layout**: Optimized 60/40 split UI for efficient workflow
+- **Smart Card Matching**: Intelligent set name mapping and fallback mechanisms
+- **Real-time Updates**: Live inventory updates with quantity management
+- **Error Handling**: Comprehensive error handling with user feedback
+- **Performance Optimization**: Image caching and pre-fetching for faster loading
 
 ## Getting Started
 
 ### Prerequisites
-
 - Node.js (for running the local server)
 
 ### Installation
-
 1. Clone this repository
 2. Navigate to the project directory
+3. Run the server: `./run.sh`
+4. Open your browser to: `http://localhost:3000`
 
-### Running the Application
+## User Workflow
 
-1. Run the server:
-   ```
-   ./run.sh
-   ```
-   
-2. Open your browser and navigate to:
-   ```
-   http://localhost:3000
-   ```
+### Basic Card Management
+1. **Search**: Enter card name (e.g., "Counterspell") and press Enter
+2. **Select**: Click on a card in the search results to view details
+3. **Add**: Enter quantity, condition, and price, then click "Add to Inventory"
+4. **Export**: Click "Export to CSV" to download your inventory
+
+### Advanced Pricing Workflow
+1. **Upload Price List**: Use "Update Price List" to upload TCG pricing data
+2. **Access Pricing Tool**: Click "Pricing Tool" for advanced price calculations
+3. **Import Inventory**: Upload existing inventory CSV files
+4. **Calculate Prices**: Apply TCG pricing rules automatically
+5. **Export Results**: Download updated inventory with calculated prices
+
+## Pricing Rules
+
+The pricing tool follows TCG marketplace rules:
+- **Minimum Price**: No card priced below $0.50
+- **Standard Cards** ($0.30 - $30): max($0.50, max(TCG Low Price, average of TCG Low With Shipping and TCG Market Price))
+- **Cheap Cards** (≤ $0.30): max($0.50, TCG Low Price)
+- **Expensive Cards** (> $30): Keep original price
+
+## UI Layout
+
+### Two-Column Design
+- **Left Panel (60%)**: Search results with compact thumbnail list
+- **Right Panel (40%)**: Selected card details and add-to-inventory form
+- **Bottom Section**: Full-width inventory table with export functionality
+- **Fixed Heights**: 500px for search/details to prevent inventory from being pushed off-screen
+
+### User Experience Enhancements
+- Entire card rows are clickable for easy selection
+- Visual feedback with blue borders for selected cards
+- Automatic scrolling to card details when selected
+- Streamlined inventory table with header-based export button
 
 ## Testing
-
-The application includes automated tests to ensure functionality doesn't regress:
 
 ### Run All Tests
 ```bash
@@ -44,58 +76,89 @@ npm test
 ./test/run-tests.sh
 ```
 
-### Run Specific Tests
-```bash
-# Test quantity update functionality (prevents regression of quote handling bug)
-npm run test:quantity
-# or
-node test/quantity-update-simple.test.js
-```
-
 ### Test Coverage
-- **Quantity Update Tests**: Validates the fix for HTML template quote handling in card lookups
-- **Integration Tests**: Verifies test data exists in real CSV files
+- **Quantity Update Tests**: Validates HTML template quote handling fixes
+- **Integration Tests**: Verifies CSV data handling and real file operations
+- **Pricing Tests**: Validates TCG pricing rule calculations
 - **Edge Case Tests**: Handles invalid inputs, missing cards, and error conditions
 
-## How to Use
+### Specific Test Commands
+```bash
+npm run test:quantity    # Test quantity update functionality
+npm run test:pricing     # Test pricing calculations
+npm run test:csv         # Test CSV import/export
+```
 
-1. **Search for Cards**: Enter a card name in the search box and click "Search"
-2. **Select a Card**: Click on a card in the search results to view its details
-3. **Add to Inventory**: Enter quantity, condition, and price, then click "Add to Inventory"
-4. **Export Inventory**: Click "Export to CSV" to download your inventory as a CSV file
-5. **Pricing Tool**: Click "Pricing Tool" to access the TCG pricing calculator
+## Architecture
 
-## Pricing Rules
+### Current Implementation
+- **Frontend**: HTML5, CSS3 (Bootstrap 5), Vanilla JavaScript
+- **Backend**: Node.js server with Express-like routing
+- **Storage**: In-memory with localStorage for price lists
+- **API**: Scryfall API integration (requires User-Agent header)
 
-The pricing tool follows these rules:
-- No card can be priced less than $0.50
-- Standard cards ($0.30 - $30) are priced as max($0.50, max(TCG Low Price, average of TCG Low With Shipping and TCG Market Price))
-- Cheap cards (market price <= $0.30) are priced as max($0.50, TCG Low Price)
-- Expensive cards (market price > $30) keep their original price
-
-## Technologies Used
-
-- HTML5
-- CSS3 (Bootstrap 5)
-- JavaScript (Vanilla)
-- Node.js (for the local server)
-- Scryfall API (for card data)
+### New Modular Architecture (Available)
+- **Models**: `Card.js`, `InventoryItem.js` - Data representation with validation
+- **Services**: `CardSearchService.js`, `InventoryService.js` - Business logic layer
+- **Controllers**: `MainController.js` - Application coordination
+- **UI Layer**: `UIManager.js` - DOM manipulation and event handling
 
 ## Development
 
 ### Known Issues Fixed
-- **Quantity Update Bug**: Fixed issue where quantity changes in the pricing tool weren't persisting to exported CSV files due to HTML template quote handling
+- **Quantity Update Bug**: Fixed HTML template quote handling in card lookups
+- **Price List Loading**: Added localStorage fallback and quota handling
+- **Set Name Mapping**: Improved card matching between Scryfall and price lists
+- **Layout Issues**: Fixed search results extending behind inventory panel
 
-### Contributing
-When making changes to quantity update functionality, ensure tests pass:
-```bash
-npm test
-```
+### Performance Optimizations
+- Pre-fetch popular card images on server start (configurable)
+- Cache set data (changes infrequently)
+- Smaller thumbnail images for faster loading
+- Graceful localStorage quota handling
+
+### Code Quality
+- Comprehensive test suite with multiple test scenarios
+- Modular code structure for maintainability
+- Proper error handling throughout the application
+- Consistent naming conventions and code style
 
 ## Future Enhancements
 
-- Local storage to persist inventory between sessions
-- Filtering and sorting options for search results
-- More detailed card information
-- Bulk import/export features
-- Collection statistics and analytics
+### Planned Features
+- Local storage persistence for inventory between sessions
+- Advanced filtering and sorting options for search results
+- Bulk import/export features with validation
+- Collection statistics and analytics dashboard
+- Keyboard navigation for search results
+- Quick-add buttons in list view for frequent cards
+
+### Technical Improvements
+- Migration to class-based architecture (files ready)
+- TypeScript conversion for better type safety
+- IndexedDB for larger storage capacity
+- Cloud storage integration options
+- Advanced caching strategies
+
+## Technologies Used
+
+- **Frontend**: HTML5, CSS3, Bootstrap 5, Vanilla JavaScript
+- **Backend**: Node.js with custom server implementation
+- **APIs**: Scryfall API for card data
+- **Storage**: localStorage with in-memory fallback
+- **Testing**: Custom test framework with Node.js
+
+## Contributing
+
+When making changes:
+1. Ensure all tests pass: `npm test`
+2. Follow existing code style and patterns
+3. Add tests for new functionality
+4. Update documentation as needed
+5. Test quantity update functionality specifically (known regression area)
+
+## API Requirements
+
+- **Scryfall API**: Requires User-Agent header in all requests
+- **Rate Limiting**: Respectful API usage with proper delays
+- **Error Handling**: Graceful fallbacks for API failures

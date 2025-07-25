@@ -1,42 +1,183 @@
-# TCG Card Manager Requirements
-# Version 1.0
+# TCG Card Manager - Complete Requirements & Context
+# This file provides comprehensive context for Amazon Q to understand the project
 
-# Core Features
-- Search for cards using Scryfall API
-- Display card images and details
-- Add cards to inventory with quantity, condition, and price
-- Export inventory as CSV
+## Project Overview
+A web application for managing Magic: The Gathering card collections with advanced pricing tools.
+Primary use case: Import TCGPlayer inventory, update prices using market data, manage collection, export results.
 
-# Search features
-- when typing a phrase, and the enter key is pressed, search automatically
+## Core Architecture
+- **Frontend**: HTML5, CSS3 (Bootstrap 5), Vanilla JavaScript (inline in HTML files)
+- **Backend**: Node.js server (server.js) with custom routing
+- **Storage**: In-memory with localStorage for price lists
+- **API**: Scryfall API (requires User-Agent header)
+- **Testing**: Custom Node.js test framework with comprehensive coverage
 
-# Technical Requirements
-- Node.js server
-- HTML/CSS/JavaScript frontend
-- Bootstrap 5 for styling
-- No database required (in-memory storage)
-- Calls to Scryfall require a User-Agent header.
-- Modular code structure for better organization and maintainability
+## Current File Structure
+```
+/root/code/tcg_card_manager/
+├── index.html          # Main app (contains all JavaScript inline)
+├── pricing.html        # Advanced pricing tool
+├── server.js           # Node.js server
+├── js/navbar.js        # Navigation (used by both HTML files)
+├── js/tcgPricing.js    # Pricing logic class (used by pricing.html)
+├── js/models/          # New class-based architecture (not yet integrated)
+├── js/services/        # Business logic services (not yet integrated)
+├── js/controllers/     # Application controllers (not yet integrated)
+├── test/               # Comprehensive test suite
+└── *.csv               # Price lists and sample data
+```
 
-# Future Enhancements (Not Yet Implemented)
-- Local storage to persist inventory between sessions
-- Filtering and sorting options for search results
-- More detailed card information
-- Bulk import/export features
-- Collection statistics and analytics
+## Implemented Features
 
-# Efficiency features 
-- When the server starts, will pre-fetch popular card images from the Scryfall API (configurable)
-- Limited to a configurable number of cards to avoid memory issues
-- Proper error handling for API requests
-- Sets are released infrequently.   Cache these results in the server. 
+### Card Search & Management
+- Search cards via Scryfall API with Enter key auto-search
+- Two-column layout: 60% search results, 40% card details
+- Clickable card rows with visual feedback (blue borders)
+- Add cards to inventory with quantity, condition, price
+- Real-time inventory table updates with remove functionality
 
-# Desired workflow
-- I should be able to log into TCGPlayer, and export my current inventory, which is a CSV file.
-- I should be able to upload a price list of all current magic cards. 
-- I should be able to adjust my prices (see app tcgplayer_pricing_app)
-- I should be able to import my inventory into memory of the app.
-- I should be able to type names of cards such as "Counterspell" and get a search result with cards matching.   
-- I should be able to quickly press one of the cards to add it to my inventory.
-- I should be able to download my full inventory when completed.
+### Pricing System
+- Upload custom price lists (CSV format) with localStorage caching
+- TCG pricing rules implementation:
+  * Minimum $0.50 for all cards
+  * Standard cards ($0.30-$30): max($0.50, max(TCG Low, avg(TCG Low+Shipping, TCG Market)))
+  * Cheap cards (≤$0.30): max($0.50, TCG Low)
+  * Expensive cards (>$30): keep original price
+- Smart card matching with set name mapping and fallbacks
+- Pricing tool with import/calculate/export workflow
 
+### Data Management
+- CSV export with proper quote escaping
+- CSV import with complex parsing (handles quoted values)
+- Price list management with error handling
+- localStorage quota management with graceful fallbacks
+
+### UI/UX Features
+- Fixed 500px height for search/details to prevent inventory scrolling
+- Compact thumbnail list view (60px × 84px images)
+- Loading indicators and error messages
+- Streamlined inventory table with export button in header
+- Automatic scrolling to card details when selected
+
+### Performance Optimizations
+- Configurable image pre-fetching on server start
+- Set data caching (infrequent changes)
+- Smaller thumbnail images for faster loading
+- Graceful error handling for API failures
+
+## Technical Implementation Details
+
+### Critical Code Patterns
+- **HTML Template Quotes**: Fixed quantity update bug with proper quote handling in card lookups
+- **CSV Parsing**: Custom parseCSVLine() function handles quoted values correctly
+- **Card Matching**: findCardInPriceList() with set name mapping and multiple fallback strategies
+- **Price Calculation**: calculatePrice() method follows exact TCG marketplace rules
+- **localStorage**: Try/catch with quota exceeded handling and server fallback
+
+### API Integration
+- Scryfall API requires User-Agent header in all requests
+- Rate limiting with respectful delays
+- Comprehensive error handling with user feedback
+- Card image URLs cached for performance
+
+### Testing Coverage
+- **quantity-update.test.js**: Validates HTML quote handling fixes (critical regression test)
+- **pricing.test.js**: TCG pricing rule calculations
+- **csv.test.js**: CSV import/export functionality
+- **integration.test.js**: End-to-end workflow testing
+- **pricing-integration.test.js**: Full pricing tool workflow
+
+## User Workflows
+
+### Basic Workflow
+1. Search card name (e.g., "Counterspell") → press Enter
+2. Click card row to view details (entire row clickable)
+3. Enter quantity, condition, price → "Add to Inventory"
+4. "Export to CSV" when finished
+
+### Advanced Pricing Workflow
+1. "Update Price List" → upload TCG pricing CSV
+2. "Pricing Tool" → access advanced calculator
+3. Import existing inventory CSV
+4. "Calculate Prices" → apply TCG rules automatically
+5. Export updated inventory with new prices
+
+## Development Context
+
+### Recent Major Changes
+- Implemented two-column layout (60/40 split)
+- Fixed quantity update bug in pricing tool
+- Added localStorage price list caching
+- Improved card matching logic with set name mapping
+- Created comprehensive test suite
+- Added class-based architecture (ready for migration)
+
+### Known Issues & Solutions
+- **Quantity Update Bug**: Fixed HTML template quote handling (test: quantity-update.test.js)
+- **Price List Loading**: Added localStorage with server fallback
+- **Set Name Mapping**: Complex mapping between Scryfall and price list set names
+- **Layout Issues**: Fixed search results extending behind inventory
+
+### Code Quality Standards
+- Comprehensive error handling throughout
+- Consistent naming conventions
+- Modular structure (new architecture ready)
+- Extensive test coverage for regressions
+- Performance optimizations implemented
+
+## Future Development
+
+### Ready for Implementation
+- **Class-based Architecture**: Complete modular structure in js/models/, js/services/, js/controllers/
+- **TypeScript Migration**: Architecture designed for easy TS conversion
+- **Enhanced Testing**: Framework ready for expanded test coverage
+
+### Planned Features
+- Local storage persistence for inventory
+- Advanced filtering/sorting for search results
+- Bulk import/export with validation
+- Collection statistics dashboard
+- Keyboard navigation for search results
+- Quick-add buttons in list view
+
+## Amazon Q Development Guidelines
+
+### Interaction Preferences
+- Provide concise, actionable responses
+- Focus on key information without excessive detail
+- Use bullet points for clarity
+- Prioritize practical solutions over theory
+
+### Code Modification Approach
+- Follow existing inline JavaScript pattern in HTML files
+- Maintain current modular structure
+- Add comprehensive error handling
+- Include tests for new functionality
+- Commit changes automatically with descriptive messages
+
+### Critical Areas to Test
+- **Quantity Updates**: Always test quantity-update functionality (known regression area)
+- **CSV Handling**: Verify quote escaping and parsing
+- **Price Calculations**: Validate TCG pricing rules
+- **Card Matching**: Test set name mapping and fallbacks
+
+### Performance Considerations
+- Image loading optimization
+- localStorage quota management
+- API rate limiting compliance
+- Memory usage for large price lists
+
+## Development Workflow
+- Work on main branch for primary development
+- Commit regularly with descriptive messages
+- Run full test suite before major changes: `npm test`
+- Follow existing code patterns and architecture
+- Maintain backward compatibility during transitions
+
+## Key Files for Context
+- **index.html**: Contains all main application JavaScript (inline)
+- **pricing.html**: Advanced pricing tool with TCG rules
+- **js/tcgPricing.js**: Core pricing logic class
+- **test/quantity-update.test.js**: Critical regression test
+- **server.js**: Node.js server with API routing
+- **CURRENT_PRICING.csv**: Sample pricing data for development
