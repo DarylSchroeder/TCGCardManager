@@ -167,10 +167,45 @@ Primary use case: Import TCGPlayer inventory, update prices using market data, m
 - API rate limiting compliance
 - Memory usage for large price lists
 
+## Testing Commands (IMPORTANT - No Ambiguity)
+
+### Primary Test Command
+When a bot says "run the tests" or "run all tests", use:
+```bash
+npm test
+```
+This runs the complete official test suite via `./test/run-tests.sh`
+
+### Alternative Test Commands
+```bash
+./test/run-tests.sh          # Same as npm test (official test suite)
+npm run test:quantity        # Run only quantity update tests (regression check)
+```
+
+### Individual Test Files (for debugging specific issues)
+```bash
+node test/csv.test.js                    # CSV parsing/export tests
+node test/pricing.test.js                # TCG pricing rule tests  
+node test/integration.test.js            # Import/export integration tests
+node test/pricing-integration.test.js    # Full pricing workflow tests
+node test/quantity-update-simple.test.js # Quantity update regression tests
+```
+
+### Test File Structure
+- **run-tests.sh**: Official test suite (quantity updates + integration validation)
+- **5 individual .test.js files**: Specific functionality tests
+- **test-data-loader.js**: Utility for loading test data (not a test itself)
+
+### When Tests Fail
+1. Run `npm test` first to see overall status
+2. Run individual test files to isolate issues
+3. Check test/data/ directory for required sample files
+4. Verify Node.js version compatibility
+
 ## Development Workflow
 - Work on main branch for primary development
 - Commit regularly with descriptive messages
-- Run full test suite before major changes: `npm test`
+- **ALWAYS run `npm test` before major changes**
 - Follow existing code patterns and architecture
 - Maintain backward compatibility during transitions
 

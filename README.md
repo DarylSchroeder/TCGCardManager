@@ -69,25 +69,33 @@ The pricing tool follows TCG marketplace rules:
 
 ## Testing
 
-### Run All Tests
+### Primary Test Command (Use This!)
 ```bash
 npm test
-# or
-./test/run-tests.sh
+```
+This runs the complete official test suite and is what you should use when someone says "run the tests".
+
+### Alternative Commands
+```bash
+./test/run-tests.sh      # Same as npm test
+npm run test:quantity    # Run only quantity update regression tests
+```
+
+### Individual Test Files (for debugging)
+```bash
+node test/csv.test.js                    # CSV parsing/export functionality
+node test/pricing.test.js                # TCG pricing rule calculations
+node test/integration.test.js            # Import/export integration
+node test/pricing-integration.test.js    # Full pricing workflow
+node test/quantity-update-simple.test.js # Quantity update regression fix
 ```
 
 ### Test Coverage
-- **Quantity Update Tests**: Validates HTML template quote handling fixes
+- **Quantity Update Tests**: Validates HTML template quote handling fixes (critical regression)
 - **Integration Tests**: Verifies CSV data handling and real file operations
-- **Pricing Tests**: Validates TCG pricing rule calculations
-- **Edge Case Tests**: Handles invalid inputs, missing cards, and error conditions
-
-### Specific Test Commands
-```bash
-npm run test:quantity    # Test quantity update functionality
-npm run test:pricing     # Test pricing calculations
-npm run test:csv         # Test CSV import/export
-```
+- **Pricing Tests**: Validates all TCG pricing rule calculations and edge cases
+- **Pricing Integration**: Full workflow testing (import → calculate → export)
+- **CSV Tests**: Parsing, escaping, export, and round-trip functionality
 
 ## Architecture
 
