@@ -810,19 +810,60 @@
                 return;
             }
             
-            // Create CSV content
-            const headers = ['Card Name', 'Set', 'Condition', 'Quantity', 'Price', 'Total'];
+            // Create CSV content with TCGplayer format
+            const headers = [
+                'TCGplayer Id',
+                'Product Line',
+                'Set Name',
+                'Product Name',
+                'Title',
+                'Number',
+                'Rarity',
+                'Condition',
+                'TCG Market Price',
+                'TCG Direct Low',
+                'TCG Low Price With Shipping',
+                'TCG Low Price',
+                'Total Quantity',
+                'Add to Quantity',
+                'TCG Marketplace Price',
+                'Photo URL'
+            ];
+            
             let csvContent = headers.join(',') + '\n';
             
             inventory.forEach(item => {
+                const card = item.card;
+                
+                // Helper function to properly escape CSV values
+                const escapeCSV = (value) => {
+                    if (value === null || value === undefined || value === '') {
+                        return '""';  // Return empty quoted string for NULL/empty values
+                    }
+                    const str = String(value);
+                    // Always quote strings to ensure proper CSV formatting
+                    return '"' + str.replace(/"/g, '""') + '"';
+                };
+                
                 const row = [
-                    `"${item.card.name}"`,
-                    `"${item.card.set_name}"`,
-                    `"${item.condition}"`,
-                    item.quantity,
-                    item.price.toFixed(2),
-                    item.total.toFixed(2)
+                    escapeCSV(card.tcgplayer_id || ''),
+                    escapeCSV('Magic'),
+                    escapeCSV(card.set_name || ''),
+                    escapeCSV(card.name || ''),
+                    escapeCSV(''),
+                    escapeCSV(card.collector_number || ''),
+                    escapeCSV(card.rarity ? card.rarity.charAt(0).toUpperCase() : ''),
+                    escapeCSV(item.condition || 'Near Mint'),
+                    escapeCSV(card.prices?.usd || '0'),
+                    escapeCSV('0'),
+                    escapeCSV(card.prices?.usd || '0'),
+                    escapeCSV(card.prices?.usd || '0'),
+                    escapeCSV(item.quantity || '1'),
+                    escapeCSV('0'),
+                    escapeCSV(item.price?.toFixed(2) || '0'),
+                    escapeCSV(card.image_uris?.normal || card.image_uris?.large || '')
                 ];
+                
                 csvContent += row.join(',') + '\n';
             });
             
@@ -831,7 +872,7 @@
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.setAttribute('href', url);
-            link.setAttribute('download', 'inventory.csv');
+            link.setAttribute('download', 'tcg_inventory.csv');
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
