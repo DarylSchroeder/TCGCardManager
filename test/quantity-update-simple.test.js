@@ -7,6 +7,10 @@
 
 const fs = require('fs');
 const path = require('path');
+const TestDataLoader = require('./test-data-loader');
+
+// Initialize test data loader
+const testDataLoader = new TestDataLoader();
 
 // Extract the updateCardQuantity function from pricing.html
 function extractUpdateCardQuantityFunction() {
@@ -22,33 +26,9 @@ function extractUpdateCardQuantityFunction() {
     return functionMatch[0];
 }
 
-// Test environment setup
+// Test environment setup using centralized data
 function createTestEnvironment() {
-    const mockCards = [
-        {
-            tcgplayerId: '8728925',
-            productName: 'A Promise Fulfilled - Light Up the Stage (Showcase)',
-            totalQuantity: 6
-        },
-        {
-            tcgplayerId: '5400291', 
-            productName: 'Acquisition Octopus',
-            totalQuantity: 1
-        },
-        {
-            tcgplayerId: '8755665',
-            productName: 'Zidane, Tantalus Thief Art Card', 
-            totalQuantity: 2
-        }
-    ];
-    
-    const testEnv = {
-        pricingService: { cards: [...mockCards] },
-        exportBtn: { disabled: false },
-        updateStats: () => {},
-        showStatus: (message, type) => {},
-        console: { log: () => {}, error: () => {} }
-    };
+    const testEnv = testDataLoader.createTestEnvironment();
     
     // Create the function in our test environment
     const functionCode = extractUpdateCardQuantityFunction();
@@ -132,34 +112,30 @@ function runTests() {
         expect(card.totalQuantity).toBe(225);
     });
     
-    test('original failing case: A Promise Fulfilled -1', (testEnv) => {
-        const originalCard = testEnv.pricingService.cards.find(c => c.tcgplayerId === '8728925');
-        expect(originalCard.totalQuantity).toBe(6);
-        
-        const mockInput = { value: '5' }; // 6 - 1 = 5
-        testEnv.updateCardQuantity(mockInput, "'8728925'");
-        
-        expect(originalCard.totalQuantity).toBe(5);
+    // Test the original failing cases using data from CSV
+    testDataLoader.getOriginalFailingCases().forEach(({ cardId, newQuantity, originalQuantity, description }) => {
+        test(`original failing case: ${description}`, (testEnv) => {
+            const cleanId = cardId.replace(/^['"]|['"]$/g, '');
+            const originalCard = testEnv.pricingService.cards.find(c => c.tcgplayerId === cleanId);
+            expect(originalCard.totalQuantity).toBe(originalQuantity);
+            
+            const mockInput = { value: newQuantity.toString() };
+            testEnv.updateCardQuantity(mockInput, cardId);
+            
+            expect(originalCard.totalQuantity).toBe(newQuantity);
+        });
     });
     
-    test('original failing case: Acquisition Octopus +2', (testEnv) => {
-        const originalCard = testEnv.pricingService.cards.find(c => c.tcgplayerId === '5400291');
-        expect(originalCard.totalQuantity).toBe(1);
-        
-        const mockInput = { value: '3' }; // 1 + 2 = 3
-        testEnv.updateCardQuantity(mockInput, "'5400291'");
-        
-        expect(originalCard.totalQuantity).toBe(3);
-    });
-    
-    test('original failing case: Zidane +223', (testEnv) => {
-        const originalCard = testEnv.pricingService.cards.find(c => c.tcgplayerId === '8755665');
-        expect(originalCard.totalQuantity).toBe(2);
-        
-        const mockInput = { value: '225' }; // 2 + 223 = 225
-        testEnv.updateCardQuantity(mockInput, "'8755665'");
-        
-        expect(originalCard.totalQuantity).toBe(225);
+    // Test quote handling cases using data from CSV
+    testDataLoader.getQuoteHandlingCases().forEach(({ input, cardId, expectedId, description }) => {
+        test(`handles ${description.toLowerCase()}`, (testEnv) => {
+            const mockInput = { value: input };
+            testEnv.updateCardQuantity(mockInput, cardId);
+            
+            const card = testEnv.pricingService.cards.find(c => c.tcgplayerId === expectedId);
+            expect(card).toBeDefined();
+            expect(card.totalQuantity).toBe(parseInt(input));
+        });
     });
     
     test('handles zero quantity', (testEnv) => {
