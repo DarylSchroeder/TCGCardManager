@@ -399,10 +399,13 @@
             function updateCardQuantity(input, cardId) {
                 const newQuantity = parseInt(input.value) || 0;
                 
-                console.log(`Updating card with ID ${cardId} to quantity ${newQuantity}`);
+                // Remove any surrounding quotes from cardId (fix for HTML template issue)
+                const cleanCardId = cardId.replace(/^['"]|['"]$/g, '');
+                
+                console.log(`Updating card with ID ${cleanCardId} to quantity ${newQuantity}`);
                 
                 // Find the card in the pricing service
-                const cardIndex = pricingService.cards.findIndex(c => c.tcgplayerId === cardId);
+                const cardIndex = pricingService.cards.findIndex(c => c.tcgplayerId === cleanCardId);
                 if (cardIndex !== -1) {
                     const card = pricingService.cards[cardIndex];
                     console.log(`Found card: ${card.productName}, current quantity: ${card.totalQuantity}`);

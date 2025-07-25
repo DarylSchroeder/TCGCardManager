@@ -33,6 +33,30 @@ A simple web application for managing your trading card game collection.
    http://localhost:3000
    ```
 
+## Testing
+
+The application includes automated tests to ensure functionality doesn't regress:
+
+### Run All Tests
+```bash
+npm test
+# or
+./test/run-tests.sh
+```
+
+### Run Specific Tests
+```bash
+# Test quantity update functionality (prevents regression of quote handling bug)
+npm run test:quantity
+# or
+node test/quantity-update-simple.test.js
+```
+
+### Test Coverage
+- **Quantity Update Tests**: Validates the fix for HTML template quote handling in card lookups
+- **Integration Tests**: Verifies test data exists in real CSV files
+- **Edge Case Tests**: Handles invalid inputs, missing cards, and error conditions
+
 ## How to Use
 
 1. **Search for Cards**: Enter a card name in the search box and click "Search"
@@ -56,6 +80,17 @@ The pricing tool follows these rules:
 - JavaScript (Vanilla)
 - Node.js (for the local server)
 - Scryfall API (for card data)
+
+## Development
+
+### Known Issues Fixed
+- **Quantity Update Bug**: Fixed issue where quantity changes in the pricing tool weren't persisting to exported CSV files due to HTML template quote handling
+
+### Contributing
+When making changes to quantity update functionality, ensure tests pass:
+```bash
+npm test
+```
 
 ## Future Enhancements
 
