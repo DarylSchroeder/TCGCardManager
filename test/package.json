@@ -3,9 +3,11 @@
   "version": "1.0.0",
   "description": "CSV import/export tests for TCG Card Manager",
   "scripts": {
-    "test": "npm run test:unit && npm run test:integration",
+    "test": "npm run test:unit && npm run test:integration && npm run test:pricing && npm run test:pricing-integration",
     "test:unit": "node csv.test.js",
     "test:integration": "node integration.test.js",
+    "test:pricing": "node pricing.test.js",
+    "test:pricing-integration": "node pricing-integration.test.js",
     "test:watch": "node --watch csv.test.js"
   },
   "keywords": ["csv", "test", "tcg", "cards"],
