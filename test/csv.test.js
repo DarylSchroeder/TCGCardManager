@@ -3,11 +3,12 @@ const path = require('path');
 
 // Extract the CSV functions from the main application
 function escapeCSV(value) {
+    // Handle NULL, undefined, or empty values as truly empty fields
     if (value === null || value === undefined || value === '') {
-        return '""';  // Return empty quoted string for NULL/empty values
+        return '';  // Return empty field instead of quoted empty string
     }
     const str = String(value);
-    // Always quote strings to ensure proper CSV formatting
+    // Always quote non-empty strings to ensure proper CSV formatting
     return '"' + str.replace(/"/g, '""') + '"';
 }
 
@@ -130,9 +131,9 @@ function testCSVEscaping() {
     console.log('Testing CSV escaping...');
     
     // Test empty values
-    console.assert(escapeCSV('') === '""', 'Empty string should become ""');
-    console.assert(escapeCSV(null) === '""', 'Null should become ""');
-    console.assert(escapeCSV(undefined) === '""', 'Undefined should become ""');
+    console.assert(escapeCSV('') === '', 'Empty string should become empty field');
+    console.assert(escapeCSV(null) === '', 'Null should become empty field');
+    console.assert(escapeCSV(undefined) === '', 'Undefined should become empty field');
     
     // Test normal values
     console.assert(escapeCSV('test') === '"test"', 'Normal string should be quoted');

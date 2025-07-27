@@ -335,25 +335,36 @@
             return cards;
         }
         
-        // Helper function to parse CSV lines correctly (handling quoted values)
+        // Helper function to parse CSV lines correctly (handling quoted values and escaped quotes)
         function parseCSVLine(line) {
-            const result = [];
-            let startValuePos = 0;
+            const fields = [];
             let inQuotes = false;
+            let currentField = '';
             
             for (let i = 0; i < line.length; i++) {
-                if (line[i] === '"') {
-                    inQuotes = !inQuotes;
-                } else if (line[i] === ',' && !inQuotes) {
-                    result.push(line.substring(startValuePos, i));
-                    startValuePos = i + 1;
+                const c = line[i];
+                
+                if (c === '"') {
+                    if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+                        // Escaped quote (double quote within quoted field)
+                        currentField += '"';
+                        i++; // Skip next quote
+                    } else {
+                        // Toggle quote state
+                        inQuotes = !inQuotes;
+                    }
+                } else if (c === ',' && !inQuotes) {
+                    // Field separator
+                    fields.push(currentField);
+                    currentField = '';
+                } else {
+                    currentField += c;
                 }
             }
             
-            // Add the last value
-            result.push(line.substring(startValuePos));
-            
-            return result;
+            // Add last field
+            fields.push(currentField);
+            return fields;
         }
         
         // Set name mapping between Scryfall and price list
@@ -888,11 +899,12 @@
                 
                 // Helper function to properly escape CSV values
                 const escapeCSV = (value) => {
+                    // Handle NULL, undefined, or empty values as truly empty fields
                     if (value === null || value === undefined || value === '') {
-                        return '""';  // Return empty quoted string for NULL/empty values
+                        return '';  // Return empty field instead of quoted empty string
                     }
                     const str = String(value);
-                    // Always quote strings to ensure proper CSV formatting
+                    // Always quote non-empty strings to ensure proper CSV formatting
                     return '"' + str.replace(/"/g, '""') + '"';
                 };
                 
