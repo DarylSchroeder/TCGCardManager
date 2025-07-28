@@ -195,8 +195,11 @@
                     <button class="btn btn-primary btn-sm me-2" onclick="updateAllPrices()">
                         <i class="fas fa-calculator me-1"></i>Update Prices
                     </button>
-                    <button class="btn btn-outline-light btn-sm" onclick="importInventory()">
+                    <button class="btn btn-outline-light btn-sm me-2" onclick="importInventory()">
                         <i class="fas fa-upload me-1"></i>Import CSV
+                    </button>
+                    <button class="btn btn-warning btn-sm" onclick="importPrices()">
+                        <i class="fas fa-dollar-sign me-1"></i>Import Prices
                     </button>
                 </div>
             </div>
@@ -328,6 +331,7 @@
         let inventory = [];
         let selectedCard = null;
         let searchResults = [];
+        let priceData = []; // Store imported pricing data
         let currentSortField = 'name';
         let currentSortDirection = 'asc';
 
@@ -355,6 +359,7 @@
             });
             
             loadInventoryFromStorage();
+            loadPriceData(); // Load pricing data on startup
             updateInventoryDisplay();
             updateSortIcons(); // Initialize sort icons
         });
@@ -956,18 +961,44 @@
             if (existingItem) {
                 existingItem.quantity += 1;
             } else {
+                // Try to find pricing data for this card
+                const pricingData = findCardPricing(selectedCard.name, selectedCard.set_name, condition);
+                
+                let calculatedPrice = 0;
+                let marketPrice = 0;
+                let lowPrice = 0;
+                let lowShipping = 0;
+                
+                if (pricingData) {
+                    marketPrice = pricingData.marketPrice;
+                    lowPrice = pricingData.lowPrice;
+                    lowShipping = pricingData.lowShipping;
+                    
+                    // Apply TCG pricing rules using the existing function
+                    const priceItem = {
+                        marketPrice: marketPrice,
+                        lowPrice: lowPrice,
+                        lowShipping: lowShipping
+                    };
+                    calculatedPrice = calculateTCGPrice(priceItem);
+                    
+                    console.log(`💰 Found pricing for ${selectedCard.name} (${condition}): Market $${marketPrice}, Calculated $${calculatedPrice}`);
+                } else {
+                    console.log(`⚠️ No pricing data found for ${selectedCard.name} (${condition})`);
+                }
+                
                 const inventoryItem = {
                     id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
                     name: selectedCard.name,
                     set: selectedCard.set_name,
                     condition: condition,
                     quantity: 1,
-                    price: 0,
-                    originalPrice: 0,
-                    calculatedPrice: 0,
-                    marketPrice: 0,
-                    lowPrice: 0,
-                    lowShipping: 0,
+                    price: calculatedPrice,
+                    originalPrice: calculatedPrice,
+                    calculatedPrice: calculatedPrice,
+                    marketPrice: marketPrice,
+                    lowPrice: lowPrice,
+                    lowShipping: lowShipping,
                     rarity: selectedCard.rarity,
                     number: selectedCard.collector_number,
                     image: selectedCard.image_uris?.normal || selectedCard.image_uris?.large || ''
@@ -1511,7 +1542,150 @@
             importModal.show();
         }
 
+        function importPrices() {
+            // Create file input for price data
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.csv';
+            input.onchange = function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const csvData = e.target.result;
+                            const lines = csvData.split('\n');
+                            const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+                            
+                            priceData = [];
+                            
+                            for (let i = 1; i < lines.length; i++) {
+                                const line = lines[i].trim();
+                                if (!line) continue;
+                                
+                                const values = parseCSVLine(line);
+                                if (values.length < headers.length) continue;
+                                
+                                const row = {};
+                                headers.forEach((header, index) => {
+                                    row[header] = values[index] || '';
+                                });
+                                
+                                // Only add rows with valid pricing data
+                                if (row['Product Name'] && row['TCG Market Price']) {
+                                    priceData.push(row);
+                                }
+                            }
+                            
+                            showMessage(`Successfully imported ${priceData.length} price entries`, 'success');
+                            console.log(`📊 Imported ${priceData.length} price entries`);
+                            
+                            // Store in localStorage for persistence
+                            try {
+                                localStorage.setItem('tcg_price_data', JSON.stringify(priceData));
+                            } catch (e) {
+                                console.warn('Could not save price data to localStorage:', e);
+                            }
+                            
+                        } catch (error) {
+                            console.error('Error importing price data:', error);
+                            showMessage('Error importing price data: ' + error.message, 'danger');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        }
+
+        // Load price data from localStorage on startup
+        function loadPriceData() {
+            try {
+                const stored = localStorage.getItem('tcg_price_data');
+                if (stored) {
+                    priceData = JSON.parse(stored);
+                    console.log(`📊 Loaded ${priceData.length} price entries from localStorage`);
+                }
+            } catch (e) {
+                console.warn('Could not load price data from localStorage:', e);
+                priceData = [];
+            }
+        }
+
+        // Find pricing data for a card
+        function findCardPricing(cardName, setName, condition) {
+            if (!priceData || priceData.length === 0) {
+                return null;
+            }
+            
+            // Try exact match first
+            let match = priceData.find(item => 
+                item['Product Name'] === cardName && 
+                item['Set Name'] === setName && 
+                item['Condition'] === condition
+            );
+            
+            if (match) {
+                return {
+                    marketPrice: parseFloat(match['TCG Market Price']) || 0,
+                    lowPrice: parseFloat(match['TCG Low Price']) || 0,
+                    lowShipping: parseFloat(match['TCG Low Price With Shipping']) || 0,
+                    tcgDirectLow: parseFloat(match['TCG Direct Low']) || 0
+                };
+            }
+            
+            // Try fuzzy matching on card name if exact match fails
+            match = priceData.find(item => 
+                item['Product Name'].toLowerCase().includes(cardName.toLowerCase()) && 
+                item['Set Name'] === setName && 
+                item['Condition'] === condition
+            );
+            
+            if (match) {
+                return {
+                    marketPrice: parseFloat(match['TCG Market Price']) || 0,
+                    lowPrice: parseFloat(match['TCG Low Price']) || 0,
+                    lowShipping: parseFloat(match['TCG Low Price With Shipping']) || 0,
+                    tcgDirectLow: parseFloat(match['TCG Direct Low']) || 0
+                };
+            }
+            
+            return null;
+        }
+
         // Utility functions
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                
+                if (char === '"') {
+                    if (inQuotes && line[i + 1] === '"') {
+                        // Escaped quote
+                        current += '"';
+                        i++; // Skip next quote
+                    } else {
+                        // Toggle quote state
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    // End of field
+                    result.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            
+            // Add the last field
+            result.push(current.trim());
+            
+            return result;
+        }
+
         function roundPrice(price) {
             return Math.round((parseFloat(price) || 0) * 100) / 100;
         }
