@@ -98,6 +98,18 @@
             box-shadow: var(--card-shadow);
         }
 
+        .inventory-table .table-responsive {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .inventory-table .table thead th {
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 10;
+        }
+
         .table th {
             background-color: #f8fafc;
             border-bottom: 2px solid #e2e8f0;
@@ -242,6 +254,7 @@
                                         <th class="sortable" data-sort="set">Set <span class="sort-icon"></span></th>
                                         <th class="sortable" data-sort="number">Collector # <span class="sort-icon"></span></th>
                                         <th class="sortable" data-sort="condition">Condition <span class="sort-icon"></span></th>
+                                        <th class="sortable" data-sort="foil">Foil <span class="sort-icon"></span></th>
                                         <th class="sortable" data-sort="quantity">Qty <span class="sort-icon"></span></th>
                                         <th class="sortable" data-sort="marketPrice">Market Price <span class="sort-icon"></span></th>
                                         <th class="sortable" data-sort="lowPrice">Low Price <span class="sort-icon"></span></th>
@@ -253,7 +266,7 @@
                                 </thead>
                                 <tbody id="inventoryTableBody">
                                     <tr>
-                                        <td colspan="11">
+                                        <td colspan="12">
                                             <div class="empty-state">
                                                 <i class="fas fa-box-open"></i>
                                                 <h5>No cards in inventory</h5>
@@ -315,6 +328,8 @@
         let inventory = [];
         let selectedCard = null;
         let searchResults = [];
+        let currentSortField = 'name';
+        let currentSortDirection = 'asc';
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
@@ -331,8 +346,17 @@
             });
             document.getElementById('publishTimestamp').textContent = timestamp;
             
+            // Add sorting event listeners
+            document.querySelectorAll('.sortable').forEach(header => {
+                header.addEventListener('click', function() {
+                    const field = this.getAttribute('data-sort');
+                    handleSort(field);
+                });
+            });
+            
             loadInventoryFromStorage();
             updateInventoryDisplay();
+            updateSortIcons(); // Initialize sort icons
         });
 
         // ===== PHASE 1: UTILITY FUNCTIONS =====
@@ -544,6 +568,7 @@
                                     <small class="text-muted">${defaultCard.type_line}</small>
                                 </div>
                                 <div class="col-2">
+                                    <small class="text-muted d-block">Set</small>
                                     <select class="form-select form-select-sm" id="set-${cleanName}" onchange="updateCardVersion('${cardName}', this.value)">
                                         ${generateSetDropdown(cardName, setGroups)}
                                     </select>
@@ -556,6 +581,14 @@
                                 </div>
                                 <div class="col-3">
                                     <div class="d-flex align-items-center gap-2">
+                                        <div class="text-center">
+                                            <select class="form-select form-select-sm condition-select mb-1" id="condition-${cleanName}">
+                                                <option value="Near Mint">Near Mint</option>
+                                                <option value="Lightly Played">Lightly Played</option>
+                                                <option value="Moderately Played">Moderately Played</option>
+                                                <option value="Heavily Played">Heavily Played</option>
+                                            </select>
+                                        </div>
                                         <div class="text-center">
                                             <button class="btn btn-sm btn-outline-warning" onclick="addCardToInventory('${cardName}', 'foil')">
                                                 <i class="fas fa-star"></i>
@@ -654,6 +687,28 @@
         }
         
         /**
+         * Detect if a condition string indicates a foil card
+         * @param {string} condition - Condition string (e.g., "Near Mint Foil", "Near Mint Foil - Portuguese")
+         * @returns {boolean} - True if foil, false otherwise
+         */
+        function isFoilCondition(condition) {
+            if (!condition) return false;
+            return condition.toLowerCase().includes('foil');
+        }
+
+        /**
+         * Get the base condition without foil or language modifiers
+         * @param {string} condition - Full condition string
+         * @returns {string} - Base condition (e.g., "Near Mint")
+         */
+        function getBaseCondition(condition) {
+            if (!condition) return 'Near Mint';
+            
+            // Remove " Foil" and everything after it (including language)
+            return condition.replace(/\s+foil.*$/i, '').trim() || 'Near Mint';
+        }
+
+        /**
          * Filter inventory matches by finish (foil/normal)
          * @param {Array} matches - Array of inventory items
          * @param {string} finish - 'foil' or 'normal' (null = return all)
@@ -662,8 +717,11 @@
         function filterByFinish(matches, finish) {
             if (!finish) return matches;
             
-            const targetCondition = finish === 'foil' ? 'Near Mint Foil' : 'Near Mint';
-            return matches.filter(item => item.condition === targetCondition);
+            if (finish === 'foil') {
+                return matches.filter(item => isFoilCondition(item.condition));
+            } else {
+                return matches.filter(item => !isFoilCondition(item.condition));
+            }
         }
 
         function getInventoryQuantity(cardName, finish, setName = null, collectorNumber = null) {
@@ -820,15 +878,15 @@
             modal.className = 'modal fade';
             modal.id = 'cardModal';
             modal.innerHTML = `
-                <div class="modal-dialog modal-lg">
-                    <div class="modal-content">
+                <div class="modal-dialog modal-lg" style="max-height: 80vh; margin: 1.75rem auto;">
+                    <div class="modal-content" style="max-height: 80vh; overflow-y: auto;">
                         <div class="modal-header">
                             <h5 class="modal-title">${card.name}</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body text-center">
                             <img src="${card.image_uris?.large || card.image_uris?.normal || card.image_uris?.small || ''}" 
-                                 alt="${card.name}" style="max-width: 100%; height: auto; border-radius: 8px;">
+                                 alt="${card.name}" style="max-width: 100%; max-height: 60vh; height: auto; border-radius: 8px;">
                             <div class="mt-3">
                                 <p><strong>Set:</strong> ${card.set_name}</p>
                                 <p><strong>Collector #:</strong> ${card.collector_number || 'N/A'}</p>
@@ -882,7 +940,10 @@
                 return;
             }
 
-            const condition = finish === 'foil' ? 'Near Mint Foil' : 'Near Mint';
+            // Get the selected condition from the form
+            const conditionSelect = document.getElementById(`condition-${cleanName}`);
+            let baseCondition = conditionSelect ? conditionSelect.value : 'Near Mint';
+            const condition = finish === 'foil' ? `${baseCondition} Foil` : baseCondition;
             
             // Check if item already exists (same name, set, collector number, and condition)
             const existingItem = inventory.find(i => 
@@ -1016,6 +1077,72 @@
             }
         }
 
+        /**
+         * Sort inventory by specified field and direction
+         * @param {string} field - Field to sort by
+         * @param {string} direction - 'asc' or 'desc'
+         * @returns {Array} - Sorted inventory array
+         */
+        function sortInventory(field, direction = 'asc') {
+            return [...inventory].sort((a, b) => {
+                let aVal = a[field];
+                let bVal = b[field];
+                
+                // Handle special cases
+                if (field === 'foil') {
+                    aVal = isFoilCondition(a.condition) ? 1 : 0;
+                    bVal = isFoilCondition(b.condition) ? 1 : 0;
+                } else if (field === 'condition') {
+                    aVal = getBaseCondition(a.condition);
+                    bVal = getBaseCondition(b.condition);
+                } else if (typeof aVal === 'string') {
+                    aVal = aVal.toLowerCase();
+                    bVal = bVal.toLowerCase();
+                } else if (typeof aVal === 'number') {
+                    aVal = aVal || 0;
+                    bVal = bVal || 0;
+                }
+                
+                if (direction === 'asc') {
+                    return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+                } else {
+                    return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+                }
+            });
+        }
+
+        /**
+         * Handle table header clicks for sorting
+         * @param {string} field - Field to sort by
+         */
+        function handleSort(field) {
+            if (currentSortField === field) {
+                currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSortField = field;
+                currentSortDirection = 'asc';
+            }
+            
+            updateInventoryDisplay();
+            updateSortIcons();
+        }
+
+        /**
+         * Update sort icons in table headers
+         */
+        function updateSortIcons() {
+            // Reset all sort icons
+            document.querySelectorAll('.sortable').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+            });
+            
+            // Set active sort icon
+            const activeHeader = document.querySelector(`[data-sort="${currentSortField}"]`);
+            if (activeHeader) {
+                activeHeader.classList.add(currentSortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+            }
+        }
+
         function updateInventoryDisplay() {
             const tbody = document.getElementById('inventoryTableBody');
             const countBadge = document.getElementById('inventoryCount');
@@ -1023,7 +1150,7 @@
             if (inventory.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="11">
+                        <td colspan="12">
                             <div class="empty-state">
                                 <i class="fas fa-box-open"></i>
                                 <h5>No cards in inventory</h5>
@@ -1036,17 +1163,21 @@
                 return;
             }
 
+            // Sort inventory using current sort settings
+            const sortedInventory = sortInventory(currentSortField, currentSortDirection);
+
             const totalCards = inventory.reduce((sum, item) => sum + item.quantity, 0);
             const totalValue = inventory.reduce((sum, item) => sum + ((item.calculatedPrice || item.price) * item.quantity), 0);
             
             countBadge.textContent = `${totalCards} cards • $${totalValue.toFixed(2)}`;
 
-            tbody.innerHTML = inventory.map(item => `
+            tbody.innerHTML = sortedInventory.map(item => `
                 <tr>
                     <td>${item.name}</td>
                     <td>${item.set}</td>
                     <td>${item.number || 'N/A'}</td>
-                    <td>${item.condition}</td>
+                    <td>${getBaseCondition(item.condition)}</td>
+                    <td>${isFoilCondition(item.condition) ? '<i class="fas fa-star text-warning"></i>' : ''}</td>
                     <td>
                         <input type="number" class="form-control form-control-sm" 
                                value="${item.quantity}" min="1" style="width: 80px;"
