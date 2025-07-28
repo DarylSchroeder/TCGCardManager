@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TCG Card Manager</title>
+    <title>TCG Card Manager - Unified Workflow</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="js/navbar.js"></script>
     <script src="js/errorHandler.js"></script>
     <style>
+        /* Card Search & Display Styles */
         .card-image {
             width: 100%;
             height: auto;
@@ -25,9 +26,6 @@
         .selected-card {
             border: 3px solid #007bff;
             background-color: #e6f2ff;
-        }
-        #inventory-table {
-            margin-top: 0;
         }
         .card-list-item {
             display: flex;
@@ -56,7 +54,7 @@
         .search-and-details-row {
             height: 500px;
             margin-bottom: 20px;
-            overflow: hidden; /* Prevent content from flowing outside */
+            overflow: hidden;
         }
         .search-results-container {
             overflow-y: auto;
@@ -68,13 +66,9 @@
             overflow-y: auto;
             margin-bottom: 1rem;
         }
-        .sticky-top-custom {
-            position: sticky;
-            top: 20px;
-        }
         #search-results {
             overflow-y: auto;
-            max-height: 350px; /* Explicit height to ensure scrolling works */
+            max-height: 350px;
             flex: 1;
         }
         .price-info {
@@ -105,6 +99,110 @@
             font-weight: bold;
             color: #198754;
         }
+        
+        /* Pricing Tool Styles */
+        .card-pricing {
+            font-size: 0.9rem;
+        }
+        .price-changed {
+            background-color: #e8f4f8;
+        }
+        .table-container {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .stats-card {
+            border-left: 4px solid #0d6efd;
+        }
+        .sortable {
+            cursor: pointer;
+            position: relative;
+            user-select: none;
+        }
+        .sortable:hover {
+            background-color: #e9ecef;
+        }
+        .sort-icon::after {
+            content: "⇵";
+            opacity: 0.3;
+            margin-left: 5px;
+            font-size: 0.8em;
+        }
+        .sort-asc .sort-icon::after {
+            content: "↑";
+            opacity: 1;
+        }
+        .sort-desc .sort-icon::after {
+            content: "↓";
+            opacity: 1;
+        }
+        .active-sort {
+            background-color: #e9ecef;
+        }
+        .quantity-input {
+            width: 70px;
+            min-width: 60px;
+            padding: 2px 5px;
+            text-align: center;
+        }
+        
+        /* Unified Interface Styles */
+        .workflow-step {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .workflow-step h3 {
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        .workflow-step p {
+            margin-bottom: 15px;
+            opacity: 0.9;
+        }
+        .step-number {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        .nav-tabs .nav-link {
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #6c757d;
+            font-weight: 500;
+        }
+        .nav-tabs .nav-link.active {
+            border-bottom-color: #0d6efd;
+            color: #0d6efd;
+            background: none;
+        }
+        .tab-content {
+            padding: 20px 0;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-ready {
+            background-color: #198754;
+        }
+        .status-loading {
+            background-color: #ffc107;
+        }
+        .status-error {
+            background-color: #dc3545;
+        }
         .price-list-status {
             font-size: 0.9em;
             margin-top: 5px;
@@ -115,895 +213,1004 @@
         .price-list-error {
             color: #dc3545;
         }
+        .price-list-loading {
+            color: #0d6efd;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
     <div class="container-fluid mt-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>TCG Card Manager</h1>
-            <div class="d-flex align-items-center">
-                <div id="price-list-status" class="price-list-status me-2">Loading price list...</div>
-                <button id="update-price-list" class="btn btn-outline-secondary btn-sm">Update Price List</button>
+        <!-- Header with Workflow Overview -->
+        <div class="workflow-step">
+            <h3><span class="step-number">1</span>TCG Card Manager - Unified Workflow</h3>
+            <p>Import your inventory, update prices, and manage your TCG card collection all in one place.</p>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center">
+                        <span class="status-indicator status-ready"></span>
+                        <span>Import Current Inventory</span>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center">
+                        <span class="status-indicator status-ready"></span>
+                        <span>Import Price List</span>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center">
+                        <span class="status-indicator status-ready"></span>
+                        <span>Add/Update Cards</span>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center">
+                        <span class="status-indicator status-ready"></span>
+                        <span>Calculate & Export</span>
+                    </div>
+                </div>
             </div>
         </div>
-        
-        <div class="row search-and-details-row">
-            <!-- Left Column: Card Search (60%) -->
-            <div class="col-md-7">
-                <div class="card h-100">
-                    <div class="card-header">
-                        <h3>Card Search</h3>
+
+        <!-- Import Section -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">Step 1: Import Current Inventory</h5>
                     </div>
-                    <div class="card-body" style="overflow: hidden; display: flex; flex-direction: column; height: 430px;">
-                        <div class="input-group mb-3">
-                            <input type="text" id="search-input" class="form-control" placeholder="Enter card name...">
-                            <button id="search-button" class="btn btn-primary">Search</button>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="inventory-csv-file" class="form-label">Select Inventory CSV File</label>
+                            <input class="form-control" type="file" id="inventory-csv-file" accept=".csv">
                         </div>
-                        
-                        <div id="loading" class="text-center">
-                            <div class="spinner-border" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                            <p class="mt-2">Searching for cards...</p>
+                        <div class="mb-3">
+                            <button id="import-inventory-btn" class="btn btn-success">Import Inventory</button>
                         </div>
-                        
-                        <div id="error-message" class="alert alert-danger"></div>
-                        
-                        <div id="search-results" class="search-results-container">
-                            <p class="text-center p-3">Enter a card name to search</p>
-                        </div>
+                        <div id="inventory-import-status" class="alert alert-info d-none"></div>
                     </div>
                 </div>
             </div>
             
-            <!-- Right Column: Card Details (40%) -->
-            <div class="col-md-5">
-                <div class="card h-100">
+            <div class="col-md-6">
+                <div class="card">
                     <div class="card-header bg-primary text-white">
-                        <h3>Card Details</h3>
+                        <h5 class="mb-0">Step 2: Import Price List</h5>
                     </div>
-                    <div class="card-body" id="card-details-container">
-                        <p class="text-center">Select a card to view details</p>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div id="price-list-status" class="price-list-status me-2">Loading price list...</div>
+                        </div>
+                        <div class="mb-3">
+                            <button id="update-price-list" class="btn btn-primary">Update Price List</button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h3>Inventory</h3>
-                <button id="export-button" class="btn btn-secondary">Export to CSV</button>
+
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="search-tab" data-bs-toggle="tab" data-bs-target="#search-panel" type="button" role="tab">
+                    <i class="fas fa-search"></i> Card Search & Add
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="pricing-tab" data-bs-toggle="tab" data-bs-target="#pricing-panel" type="button" role="tab">
+                    <i class="fas fa-dollar-sign"></i> Pricing Tool
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="mainTabContent">
+            <!-- Card Search & Add Panel -->
+            <div class="tab-pane fade show active" id="search-panel" role="tabpanel">
+
+                <div class="row search-and-details-row">
+                    <!-- Left Column: Card Search (60%) -->
+                    <div class="col-md-7">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h3>Card Search</h3>
+                            </div>
+                            <div class="card-body" style="overflow: hidden; display: flex; flex-direction: column; height: 430px;">
+                                <div class="input-group mb-3">
+                                    <input type="text" id="search-input" class="form-control" placeholder="Enter card name...">
+                                    <button id="search-button" class="btn btn-primary">Search</button>
+                                </div>
+                                
+                                <div id="loading" class="text-center">
+                                    <div class="spinner-border" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-2">Searching for cards...</p>
+                                </div>
+                                
+                                <div id="error-message" class="alert alert-danger"></div>
+                                
+                                <div id="search-results" class="search-results-container">
+                                    <p class="text-center p-3">Enter a card name to search</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Right Column: Card Details (40%) -->
+                    <div class="col-md-5">
+                        <div class="card h-100">
+                            <div class="card-header bg-primary text-white">
+                                <h3>Card Details</h3>
+                            </div>
+                            <div class="card-body" id="card-details-container">
+                                <p class="text-center">Select a card to view details</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Inventory Section -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">My Inventory</h5>
+                                <button id="export-csv" class="btn btn-success btn-sm">Export to CSV</button>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                                    <table class="table table-striped table-hover mb-0">
+                                        <thead class="sticky-top bg-light">
+                                            <tr>
+                                                <th>Card Name</th>
+                                                <th>Set</th>
+                                                <th>Condition</th>
+                                                <th>Quantity</th>
+                                                <th>Price</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="inventory-body">
+                                            <tr>
+                                                <td colspan="6" class="text-center">No cards in inventory</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table id="inventory-table" class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Card Name</th>
-                                <th>Set</th>
-                                <th>Condition</th>
-                                <th>Quantity</th>
-                                <th>Price</th>
-                                <th>Total</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="inventory-body">
-                            <tr id="empty-inventory-row">
-                                <td colspan="7" class="text-center">No cards in inventory</td>
-                            </tr>
-                        </tbody>
-                    </table>
+
+
+
+            <!-- Pricing Tool Panel -->
+            <div class="tab-pane fade" id="pricing-panel" role="tabpanel">
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="card stats-card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Inventory Statistics</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">Total Cards</label>
+                                            <h3 id="total-cards">0</h3>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">Total Value</label>
+                                            <h3 id="total-value">$0.00</h3>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">Average Price</label>
+                                            <h3 id="avg-price">$0.00</h3>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">Actions</label>
+                                            <div class="d-grid gap-2">
+                                                <button id="calculate-btn" class="btn btn-success btn-sm">Calculate Prices</button>
+                                                <button id="export-btn" class="btn btn-secondary btn-sm">Export Updated CSV</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Card Inventory</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-container">
+                            <table class="table table-striped table-hover mb-0">
+                                <thead class="sticky-top bg-light">
+                                    <tr>
+                                        <th class="sortable" data-sort="name">Card Name <span class="sort-icon"></span></th>
+                                        <th class="sortable" data-sort="set">Set <span class="sort-icon"></span></th>
+                                        <th class="sortable" data-sort="condition">Condition <span class="sort-icon"></span></th>
+                                        <th class="sortable" data-sort="quantity">Qty <span class="sort-icon"></span></th>
+                                        <th class="sortable" data-sort="marketPrice">Market Price <span class="sort-icon"></span></th>
+                                        <th class="sortable" data-sort="lowPrice">Low Price <span class="sort-icon"></span></th>
+                                        <th class="sortable" data-sort="lowShipping">Low w/ Shipping <span class="sort-icon"></span></th>
+                                        <th class="sortable" data-sort="originalPrice">Original Price <span class="sort-icon"></span></th>
+                                        <th class="sortable" data-sort="calculatedPrice">Calculated Price <span class="sort-icon"></span></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="card-table-body">
+                                    <tr>
+                                        <td colspan="9" class="text-center">Import a CSV file to view cards</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Pricing Rules</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li><strong>Minimum Price:</strong> No card can be priced less than $0.50</li>
+                            <li><strong>Standard Cards ($0.30 - $30):</strong> max($0.50, max(TCG Low Price, average of TCG Low With Shipping and TCG Market Price))</li>
+                            <li><strong>Cheap Cards (≤ $0.30):</strong> max($0.50, TCG Low Price)</li>
+                            <li><strong>Expensive Cards (> $30):</strong> Keep original price</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/inventory.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
     <script src="js/tcgPricing.js"></script>
     <script>
         // Global variables
-        let selectedCard = null;
-        const inventory = [];
-        let pricingService = new TCGPricingService();
         let priceList = [];
-        
-        // DOM Elements
-        const searchInput = document.getElementById('search-input');
-        const searchButton = document.getElementById('search-button');
-        const searchResults = document.getElementById('search-results');
-        const cardDetailsContainer = document.getElementById('card-details-container');
-        const loadingIndicator = document.getElementById('loading');
-        const errorMessage = document.getElementById('error-message');
-        const inventoryBody = document.getElementById('inventory-body');
-        const exportButton = document.getElementById('export-button');
-        const priceListStatus = document.getElementById('price-list-status');
-        
-        // Load the price list when the page loads
+        let selectedCard = null;
+        let inventory = [];
+
+        // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
-            loadPriceList();
+            // Initialize the card search functionality
+            App.init();
+            
+            // Initialize pricing service for the pricing tool
+            const pricingService = new TCGPricingService();
+            window.pricingService = pricingService;
+            
+            // Initialize UI elements
+            initializeUI();
+            initializeEventListeners();
+            loadSavedData();
         });
-        
-        // Function to load the price list
-        function loadPriceList() {
-            // First try to load from localStorage if available
-            try {
-                const savedPriceList = localStorage.getItem('priceListCSV');
+
+        function initializeUI() {
+            // Initialize Bootstrap tabs
+            const triggerTabList = [].slice.call(document.querySelectorAll('#mainTabs button'))
+            triggerTabList.forEach(function (triggerEl) {
+                const tabTrigger = new bootstrap.Tab(triggerEl)
+                triggerEl.addEventListener('click', function (event) {
+                    event.preventDefault()
+                    tabTrigger.show()
+                })
+            });
+        }
+
+        function initializeEventListeners() {
+            // Inventory import button
+            document.getElementById('import-inventory-btn').addEventListener('click', function() {
+                const fileInput = document.getElementById('inventory-csv-file');
+                const file = fileInput.files[0];
                 
-                if (savedPriceList) {
-                    priceList = parsePriceListCSV(savedPriceList);
-                    priceListStatus.textContent = `Price list loaded from local storage: ${priceList.length} cards`;
-                    priceListStatus.className = 'price-list-status price-list-loaded';
-                    console.log(`Loaded ${priceList.length} cards from local storage`);
+                if (!file) {
+                    showInventoryImportStatus('Please select a CSV file first.', 'danger');
                     return;
                 }
-            } catch (error) {
-                console.error('Error accessing localStorage:', error);
-                // Continue to fetch from server if local storage access fails
-            }
-            
-            // If no saved list or access failed, fetch from server
-            fetch('/Full_price_list_nm_lp.csv')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Failed to load price list');
-                    }
-                    return response.text();
-                })
-                .then(csvText => {
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
                     try {
-                        priceList = parsePriceListCSV(csvText);
-                        priceListStatus.textContent = `Price list loaded: ${priceList.length} cards`;
-                        priceListStatus.className = 'price-list-status price-list-loaded';
-                        console.log(`Loaded ${priceList.length} cards from price list`);
-                        
-                        // Try to save to localStorage but don't fail if it exceeds quota
-                        try {
-                            localStorage.setItem('priceListCSV', csvText);
-                        } catch (storageError) {
-                            console.warn('Could not save price list to localStorage:', storageError.message);
-                        }
+                        const csvText = e.target.result;
+                        importInventoryFromCSV(csvText);
+                        showInventoryImportStatus('Inventory imported successfully!', 'success');
                     } catch (error) {
-                        throw new Error('Error parsing price list: ' + error.message);
-                    }
-                })
-                .catch(error => {
-                    priceListStatus.textContent = `Error: ${error.message}`;
-                    priceListStatus.className = 'price-list-status price-list-error';
-                    console.error('Error loading price list:', error);
-                });
-        }
-        
-        // Function to parse the price list CSV
-        function parsePriceListCSV(csvText) {
-            const lines = csvText.split('\\n');
-            const headers = lines[0].split(',');
-            
-            const cards = [];
-            
-            for (let i = 1; i < lines.length; i++) {
-                if (!lines[i].trim()) continue;
-                
-                const values = parseCSVLine(lines[i]);
-                if (values.length !== headers.length) continue;
-                
-                const card = {
-                    tcgplayerId: values[0].replace(/"/g, ''),
-                    productLine: values[1].replace(/"/g, ''),
-                    setName: values[2].replace(/"/g, ''),
-                    productName: values[3].replace(/"/g, ''),
-                    title: values[4].replace(/"/g, ''),
-                    number: values[5].replace(/"/g, ''),
-                    rarity: values[6].replace(/"/g, ''),
-                    condition: values[7].replace(/"/g, ''),
-                    tcgMarketPrice: parseFloat(values[8]) || 0,
-                    tcgDirectLow: values[9].replace(/"/g, ''),
-                    tcgLowWithShipping: parseFloat(values[10]) || 0,
-                    tcgLowPrice: parseFloat(values[11]) || 0,
-                    totalQuantity: values[12].replace(/"/g, ''),
-                    addToQuantity: values[13].replace(/"/g, ''),
-                    tcgMarketplacePrice: values[14].replace(/"/g, ''),
-                    photoUrl: values[15].replace(/"/g, ''),
-                    
-                    // Add a method to calculate the price based on TCG pricing rules
-                    calculatePrice: function() {
-                        const marketPrice = this.tcgMarketPrice;
-                        const lowPrice = this.tcgLowPrice;
-                        const lowWithShipping = this.tcgLowWithShipping;
-                        
-                        let estimatedPrice;
-                        
-                        if (marketPrice <= 0.30) {
-                            // Cheap cards
-                            estimatedPrice = Math.max(0.50, lowPrice);
-                        } else if (marketPrice > 30) {
-                            // Expensive cards
-                            estimatedPrice = marketPrice;
-                        } else {
-                            // Standard cards
-                            const avgLowAndMarket = (lowWithShipping + marketPrice) / 2;
-                            estimatedPrice = Math.max(0.50, Math.max(lowPrice, avgLowAndMarket));
-                        }
-                        
-                        this.estimatedPrice = estimatedPrice;
-                        return estimatedPrice;
+                        showInventoryImportStatus(`Error importing inventory: ${error.message}`, 'danger');
+                        console.error('Inventory import error:', error);
                     }
                 };
                 
-                cards.push(card);
-            }
-            
-            return cards;
-        }
-        
-        // Helper function to parse CSV lines correctly (handling quoted values and escaped quotes)
-        function parseCSVLine(line) {
-            const fields = [];
-            let inQuotes = false;
-            let currentField = '';
-            
-            for (let i = 0; i < line.length; i++) {
-                const c = line[i];
+                reader.onerror = function() {
+                    showInventoryImportStatus('Error reading file', 'danger');
+                };
                 
-                if (c === '"') {
-                    if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
-                        // Escaped quote (double quote within quoted field)
-                        currentField += '"';
-                        i++; // Skip next quote
-                    } else {
-                        // Toggle quote state
-                        inQuotes = !inQuotes;
-                    }
-                } else if (c === ',' && !inQuotes) {
-                    // Field separator
-                    fields.push(currentField);
-                    currentField = '';
-                } else {
-                    currentField += c;
-                }
-            }
-            
-            // Add last field
-            fields.push(currentField);
-            return fields;
-        }
-        
-        // Set name mapping between Scryfall and price list
-        const setNameMapping = {
-            // Modern sets
-            "modern horizons 3": ["Modern Horizons 3"],
-            "mh3": ["Modern Horizons 3"],
-            "commander legends: battle for baldur's gate": ["Commander Legends: Battle for Baldur's Gate"],
-            "clb": ["Commander Legends: Battle for Baldur's Gate"],
-            "streets of new capenna": ["Streets of New Capenna"],
-            "snc": ["Streets of New Capenna"],
-            "kamigawa: neon dynasty": ["Kamigawa: Neon Dynasty"],
-            "neo": ["Kamigawa: Neon Dynasty"],
-            "innistrad: crimson vow": ["Innistrad: Crimson Vow"],
-            "vow": ["Innistrad: Crimson Vow"],
-            "innistrad: midnight hunt": ["Innistrad: Midnight Hunt"],
-            "mid": ["Innistrad: Midnight Hunt"],
-            "adventures in the forgotten realms": ["Adventures in the Forgotten Realms"],
-            "afr": ["Adventures in the Forgotten Realms"],
-            "strixhaven: school of mages": ["Strixhaven"],
-            "stx": ["Strixhaven"],
-            "kaldheim": ["Kaldheim"],
-            "khm": ["Kaldheim"],
-            "zendikar rising": ["Zendikar Rising"],
-            "znr": ["Zendikar Rising"],
-            "ikoria: lair of behemoths": ["Ikoria"],
-            "iko": ["Ikoria"],
-            "theros beyond death": ["Theros Beyond Death"],
-            "thb": ["Theros Beyond Death"],
-            "throne of eldraine": ["Throne of Eldraine"],
-            "eld": ["Throne of Eldraine"],
-            "war of the spark": ["War of the Spark"],
-            "war": ["War of the Spark"],
-            "ravnica allegiance": ["Ravnica Allegiance"],
-            "rna": ["Ravnica Allegiance"],
-            "guilds of ravnica": ["Guilds of Ravnica"],
-            "grn": ["Guilds of Ravnica"],
-            "dominaria": ["Dominaria"],
-            "dom": ["Dominaria"],
-            
-            // Core sets
-            "core set 2021": ["Core Set 2021"],
-            "m21": ["Core Set 2021"],
-            "core set 2020": ["Core Set 2020"],
-            "m20": ["Core Set 2020"],
-            "core set 2019": ["Core Set 2019"],
-            "m19": ["Core Set 2019"],
-            
-            // Special sets
-            "the list": ["The List Reprints"],
-            "plst": ["The List Reprints"],
-            "time spiral remastered": ["Time Spiral Remastered"],
-            "tsr": ["Time Spiral Remastered"],
-            "double masters": ["Double Masters"],
-            "2xm": ["Double Masters"],
-            "double masters 2022": ["Double Masters 2022"],
-            "2x2": ["Double Masters 2022"],
-            "jumpstart": ["Jumpstart"],
-            "jmp": ["Jumpstart"],
-            "commander legends": ["Commander Legends"],
-            "cmr": ["Commander Legends"],
-            
-            // Commander sets
-            "commander 2021": ["Commander 2021"],
-            "c21": ["Commander 2021"],
-            "commander 2020": ["Commander 2020"],
-            "c20": ["Commander 2020"],
-            "commander 2019": ["Commander 2019"],
-            "c19": ["Commander 2019"],
-            "commander 2018": ["Commander 2018"],
-            "c18": ["Commander 2018"],
-            
-            // Older sets
-            "urza's saga": ["Urza's Saga"],
-            "usg": ["Urza's Saga"],
-            "world championship decks": ["World Championship Decks"],
-            "fnm promos": ["FNM Promos"],
-            "commander 2014": ["Commander 2014"],
-            "c14": ["Commander 2014"],
-            "commander anthology": ["Commander Anthology"],
-            "cma": ["Commander Anthology"]
-        };
-        
-        // Function to find a card in the price list
-        function findCardInPriceList(cardName, setName) {
-            console.log(`Searching for "${cardName}" in set "${setName}"`);
-            
-            // Try to find an exact match first by name only
-            let matches = priceList.filter(card => 
-                card.productName.toLowerCase() === cardName.toLowerCase()
-            );
-            
-            console.log(`Found ${matches.length} name matches`);
-            
-            // If we have multiple matches and a set name, try to filter by set
-            if (matches.length > 0 && setName) {
-                const setMatches = matches.filter(card => {
-                    const priceListSetName = card.setName.toLowerCase();
-                    const searchSetName = setName.toLowerCase();
-                    
-                    // Direct match
-                    if (priceListSetName === searchSetName) {
-                        return true;
-                    }
-                    // Check if the set name is in our mapping
-                    else if (setNameMapping[searchSetName] && 
-                             setNameMapping[searchSetName].some(mappedName => 
-                                mappedName.toLowerCase() === priceListSetName)) {
-                        return true;
-                    }
-                    // Handle abbreviations (e.g., "mh3" vs "Modern Horizons 3")
-                    else if (searchSetName.includes(priceListSetName) || priceListSetName.includes(searchSetName)) {
-                        return true;
-                    }
-                    // Special case for "The List Reprints" which might be labeled differently
-                    else if (searchSetName.includes("list") && priceListSetName.includes("list")) {
-                        return true;
-                    }
-                    return false;
-                });
-                
-                // If we found set matches, use those
-                if (setMatches.length > 0) {
-                    matches = setMatches;
-                    console.log(`Filtered to ${matches.length} set matches`);
-                }
-            }
-            
-            // If no exact match, try a partial match on the card name
-            if (matches.length === 0) {
-                matches = priceList.filter(card => 
-                    card.productName.toLowerCase().includes(cardName.toLowerCase())
-                );
-                console.log(`Found ${matches.length} partial matches`);
-            }
-            
-            return matches;
-        }
-        
-        // Debouncing for search input
-        let searchTimeout;
-        
-        // Event Listeners
-        searchButton.addEventListener('click', searchCards);
-        searchInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                clearTimeout(searchTimeout);
-                searchCards();
-            }
-        });
-        
-        // Add debounced search on input
-        searchInput.addEventListener('input', function(e) {
-            clearTimeout(searchTimeout);
-            const query = e.target.value.trim();
-            
-            if (query.length >= 2) {
-                searchTimeout = setTimeout(() => {
-                    searchCards();
-                }, 300); // 300ms debounce
-            }
-        });
-        
-        exportButton.addEventListener('click', exportInventory);
-        
-        // Functions
-        function searchCards() {
-            const query = searchInput.value.trim();
-            if (query === '') {
-                showError('Please enter a card name');
-                return;
-            }
-            
-            // Enhanced loading state
-            showLoading();
-            hideError();
-            searchButton.disabled = true;
-            searchButton.textContent = 'Searching...';
-            
-            // First search for cards by name
-            fetch(`https://api.scryfall.com/cards/search?q=${encodeURIComponent(query)}`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('No cards found');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    // If we only got one result and it has an oracle_id, fetch all printings
-                    if (data.data.length === 1 && data.data[0].oracle_id) {
-                        return fetch(`https://api.scryfall.com/cards/search?order=released&q=oracleid%3A${data.data[0].oracle_id}&unique=prints`)
-                            .then(response => {
-                                if (!response.ok) {
-                                    // If this fails, just use the original results
-                                    return data;
-                                }
-                                return response.json();
-                            });
-                    }
-                    return data;
-                })
-                .then(data => {
-                    displaySearchResults(data.data);
-                    hideLoading();
-                    // Reset button state
-                    searchButton.disabled = false;
-                    searchButton.textContent = 'Search';
-                })
-                .catch(error => {
-                    hideLoading();
-                    showError(error.message);
-                    // Reset button state
-                    searchButton.disabled = false;
-                    searchButton.textContent = 'Search';
-                    // Safe DOM manipulation instead of innerHTML
-                    searchResults.textContent = '';
-                    const noResultsMsg = document.createElement('p');
-                    noResultsMsg.className = 'text-center p-3';
-                    noResultsMsg.textContent = 'No cards found';
-                    searchResults.appendChild(noResultsMsg);
-                });
-        }
-        
-        function displaySearchResults(cards) {
-            // Clear results safely
-            searchResults.textContent = '';
-            
-            cards.forEach(card => {
-                const cardElement = document.createElement('div');
-                cardElement.className = 'card-list-item';
-                cardElement.dataset.cardId = card.id;
-                
-                // Get the card image URL
-                let imageUrl = '';
-                if (card.image_uris && card.image_uris.small) {
-                    imageUrl = card.image_uris.small;
-                } else if (card.card_faces && card.card_faces[0].image_uris) {
-                    imageUrl = card.card_faces[0].image_uris.small;
-                }
-                
-                // Get the set name
-                const setName = card.set_name || '';
-                
-                cardElement.innerHTML = `
-                    <img src="${imageUrl}" alt="${card.name}" class="card-thumbnail">
-                    <div class="card-info">
-                        <div class="fw-bold">${card.name}</div>
-                        <div class="text-muted small">${setName} (${card.set.toUpperCase()}) • ${card.rarity}</div>
-                    </div>
-                `;
-                
-                cardElement.addEventListener('click', () => {
-                    // Remove selected class from all cards
-                    document.querySelectorAll('.card-list-item').forEach(el => {
-                        el.classList.remove('selected-card');
-                    });
-                    
-                    // Add selected class to this card
-                    cardElement.classList.add('selected-card');
-                    
-                    // Display card details
-                    displayCardDetails(card);
-                    
-                    // Store selected card
-                    selectedCard = card;
-                });
-                
-                searchResults.appendChild(cardElement);
+                reader.readAsText(file);
             });
-        }
-        
-        function displayCardDetails(card) {
-            console.log("Displaying card details:", card);
-            
-            // Get the card image URL
-            let imageUrl = '';
-            if (card.image_uris && card.image_uris.normal) {
-                imageUrl = card.image_uris.normal;
-            } else if (card.card_faces && card.card_faces[0].image_uris) {
-                imageUrl = card.card_faces[0].image_uris.normal;
-            }
-            
-            // Find pricing information from our price list
-            const priceMatches = findCardInPriceList(card.name, card.set_name);
-            console.log("Price matches:", priceMatches);
-            
-            let priceInfoHtml = '';
-            let suggestedPrice = 0;
-            
-            if (priceMatches.length > 0) {
-                // Sort by condition: Near Mint first, then Lightly Played
-                priceMatches.sort((a, b) => {
-                    if (a.condition.includes('Near Mint') && !b.condition.includes('Near Mint')) return -1;
-                    if (!a.condition.includes('Near Mint') && b.condition.includes('Near Mint')) return 1;
-                    return 0;
+
+            // Price list update button
+            document.getElementById('update-price-list').addEventListener('click', function() {
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = '.csv';
+                
+                fileInput.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    
+                    const fileSizeMB = file.size / (1024 * 1024);
+                    if (fileSizeMB > 50) {
+                        if (!confirm(`File size is ${fileSizeMB.toFixed(1)}MB. Large files may take a while to process and could cause browser issues. Continue?`)) {
+                            return;
+                        }
+                    }
+                    
+                    const priceListStatus = document.getElementById('price-list-status');
+                    priceListStatus.textContent = `Processing ${fileSizeMB.toFixed(1)}MB file...`;
+                    priceListStatus.className = 'price-list-status price-list-loading';
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const csvText = e.target.result;
+                            setTimeout(() => {
+                                processLargeCSV(csvText, fileSizeMB);
+                            }, 100);
+                        } catch (error) {
+                            priceListStatus.textContent = `Error: ${error.message}`;
+                            priceListStatus.className = 'price-list-status price-list-error';
+                            console.error('Error reading price list:', error);
+                        }
+                    };
+                    
+                    reader.onerror = function() {
+                        priceListStatus.textContent = 'Error reading file';
+                        priceListStatus.className = 'price-list-status price-list-error';
+                    };
+                    
+                    reader.readAsText(file);
                 });
                 
-                // Get the first match (Near Mint if available)
-                const priceInfo = priceMatches[0];
-                
-                // Calculate the estimated price
-                priceInfo.calculatePrice();
-                suggestedPrice = priceInfo.estimatedPrice;
-                
-                priceInfoHtml = `
-                    <div class="price-info">
-                        <h5>Pricing Information (${priceInfo.condition})</h5>
-                        <table>
-                            <tr>
-                                <td>TCG Market Price:</td>
-                                <td>$${priceInfo.tcgMarketPrice.toFixed(2)}</td>
-                            </tr>
-                            <tr>
-                                <td>TCG Low Price:</td>
-                                <td>$${priceInfo.tcgLowPrice.toFixed(2)}</td>
-                            </tr>
-                            <tr>
-                                <td>TCG Low With Shipping:</td>
-                                <td>$${priceInfo.tcgLowWithShipping.toFixed(2)}</td>
-                            </tr>
-                            <tr class="estimated-price">
-                                <td>Estimated Price:</td>
-                                <td>$${priceInfo.estimatedPrice.toFixed(2)}</td>
-                            </tr>
-                        </table>
-                    </div>
-                `;
-            } else {
-                priceInfoHtml = `
-                    <div class="price-info alert alert-warning">
-                        <h5>No pricing information available</h5>
-                        <p>This card was not found in the price list.</p>
-                    </div>
-                `;
-            }
+                fileInput.click();
+            });
+
+            // Pricing tool event listeners
+            const calculateBtn = document.getElementById('calculate-btn');
+            const exportBtn = document.getElementById('export-btn');
+            const cardTableBody = document.getElementById('card-table-body');
+            const totalCardsElement = document.getElementById('total-cards');
+            const totalValueElement = document.getElementById('total-value');
+            const avgPriceElement = document.getElementById('avg-price');
             
-            cardDetailsContainer.innerHTML = `
-                <div class="text-center mb-3">
-                    <img src="${imageUrl}" alt="${card.name}" class="img-fluid" style="max-height: 300px;">
-                </div>
-                <h4>${card.name}</h4>
-                <p class="text-muted">${card.set_name} (${card.set.toUpperCase()}) • ${card.rarity}</p>
-                ${priceInfoHtml}
-                <div class="mt-3">
-                    <form id="add-to-inventory-form">
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label for="quantity" class="form-label">Quantity</label>
-                                <input type="number" class="form-control" id="quantity" min="1" value="1">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="condition" class="form-label">Condition</label>
-                                <select class="form-select" id="condition">
-                                    <option value="Near Mint">Near Mint</option>
-                                    <option value="Lightly Played">Lightly Played</option>
-                                    <option value="Moderately Played">Moderately Played</option>
-                                    <option value="Heavily Played">Heavily Played</option>
-                                    <option value="Damaged">Damaged</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="price" class="form-label">Price</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">$</span>
-                                    <input type="number" class="form-control" id="price" min="0" step="0.01" 
-                                           value="${suggestedPrice > 0 ? suggestedPrice.toFixed(2) : '0.00'}">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="d-grid mt-3">
-                            <button type="button" class="btn btn-primary" id="add-to-inventory-btn">Add to Inventory</button>
-                        </div>
-                    </form>
-                </div>
-            `;
-            
-            // Add event listener to the Add to Inventory button
-            document.getElementById('add-to-inventory-btn').addEventListener('click', addToInventory);
-            
-            // Scroll to the top of the details container
-            cardDetailsContainer.scrollTop = 0;
-        }
-        
-        function addToInventory() {
-            if (!selectedCard) {
-                return;
-            }
-            
-            // Input validation with bounds checking
-            let quantity = parseInt(document.getElementById('quantity').value) || 1;
-            let price = parseFloat(document.getElementById('price').value) || 0;
-            const condition = document.getElementById('condition').value;
-            
-            // Validate quantity bounds (1 to 9999)
-            if (quantity < 1) {
-                quantity = 1;
-                document.getElementById('quantity').value = 1;
-            } else if (quantity > 9999) {
-                quantity = 9999;
-                document.getElementById('quantity').value = 9999;
-            }
-            
-            // Validate price bounds (0 to 99999.99)
-            if (price < 0) {
-                price = 0;
-                document.getElementById('price').value = '0.00';
-            } else if (price > 99999.99) {
-                price = 99999.99;
-                document.getElementById('price').value = '99999.99';
-            }
-            
-            // Create inventory item
-            const inventoryItem = {
-                id: Date.now(), // Use timestamp as unique ID
-                card: selectedCard,
-                quantity: quantity,
-                condition: condition,
-                price: price,
-                total: quantity * price
+            // Sorting state
+            let currentSort = {
+                column: 'name',
+                direction: 'asc'
             };
             
-            // Add to inventory array
-            inventory.push(inventoryItem);
+            // Add event listeners to sortable headers
+            document.querySelectorAll('th.sortable').forEach(header => {
+                header.addEventListener('click', function() {
+                    const column = this.dataset.sort;
+                    
+                    if (currentSort.column === column) {
+                        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        currentSort.column = column;
+                        currentSort.direction = 'asc';
+                    }
+                    
+                    document.querySelectorAll('th.sortable').forEach(th => {
+                        th.classList.remove('sort-asc', 'sort-desc', 'active-sort');
+                    });
+                    
+                    this.classList.add('active-sort');
+                    this.classList.add(currentSort.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+                    
+                    if (pricingService.cards.length > 0) {
+                        updateCardTable(sortCards(pricingService.cards));
+                    }
+                });
+            });
+
             
-            // Update inventory table
-            updateInventoryTable();
-            
-            // Show success message
-            alert(`Added ${quantity} ${selectedCard.name} to inventory`);
+
+            // Calculate button
+            calculateBtn.addEventListener('click', function() {
+                try {
+                    // Recalculate prices for all inventory items
+                    inventory.forEach(item => {
+                        item.calculatePrice();
+                    });
+                    
+                    updatePricingTable();
+                    updatePricingStatistics();
+                    showPricingStatus('Prices calculated successfully!', 'success');
+                    exportBtn.disabled = false;
+                } catch (error) {
+                    showPricingStatus(`Error calculating prices: ${error.message}`, 'danger');
+                    console.error('Calculation error:', error);
+                }
+            });
+
+            // Export button
+            exportBtn.addEventListener('click', function() {
+                try {
+                    const csvContent = exportInventoryToCSV();
+                    downloadCSV(csvContent, 'updated_inventory.csv');
+                    showPricingStatus('CSV exported successfully!', 'success');
+                } catch (error) {
+                    showPricingStatus(`Error exporting CSV: ${error.message}`, 'danger');
+                    console.error('Export error:', error);
+                }
+            });
         }
-        
-        function updateInventoryTable() {
-            // Remove empty inventory row if it exists
-            const emptyRow = document.getElementById('empty-inventory-row');
-            if (emptyRow) {
-                emptyRow.remove();
+
+        function processLargeCSV(csvText, fileSizeMB) {
+            const lines = csvText.split('\n');
+            const totalLines = lines.length;
+            const headers = parseCSVLine(lines[0]);
+            
+            priceList = [];
+            let processedLines = 0;
+            const chunkSize = 1000;
+            
+            function processChunk() {
+                const startIndex = processedLines + 1;
+                const endIndex = Math.min(startIndex + chunkSize, totalLines);
+                
+                for (let i = startIndex; i < endIndex; i++) {
+                    if (!lines[i].trim()) continue;
+                    
+                    try {
+                        const values = parseCSVLine(lines[i]);
+                        if (values.length !== headers.length) continue;
+                        
+                        const card = {
+                            tcgplayerId: values[0].replace(/"/g, ''),
+                            productLine: values[1].replace(/"/g, ''),
+                            setName: values[2].replace(/"/g, ''),
+                            productName: values[3].replace(/"/g, ''),
+                            title: values[4].replace(/"/g, ''),
+                            number: values[5].replace(/"/g, ''),
+                            rarity: values[6].replace(/"/g, ''),
+                            condition: values[7].replace(/"/g, ''),
+                            tcgMarketPrice: parseFloat(values[8]) || 0,
+                            tcgDirectLow: values[9].replace(/"/g, ''),
+                            tcgLowWithShipping: parseFloat(values[10]) || 0,
+                            tcgLowPrice: parseFloat(values[11]) || 0,
+                            totalQuantity: values[12].replace(/"/g, ''),
+                            addToQuantity: values[13].replace(/"/g, ''),
+                            tcgMarketplacePrice: values[14].replace(/"/g, ''),
+                            photoUrl: values[15].replace(/"/g, ''),
+                            
+                            calculatePrice: function() {
+                                const marketPrice = this.tcgMarketPrice;
+                                const lowPrice = this.tcgLowPrice;
+                                const lowWithShipping = this.tcgLowWithShipping;
+                                
+                                let estimatedPrice;
+                                
+                                if (marketPrice <= 0.30) {
+                                    estimatedPrice = Math.max(0.50, lowPrice);
+                                } else if (marketPrice > 30) {
+                                    estimatedPrice = marketPrice;
+                                } else {
+                                    const avgLowAndMarket = (lowWithShipping + marketPrice) / 2;
+                                    estimatedPrice = Math.max(0.50, Math.max(lowPrice, avgLowAndMarket));
+                                }
+                                
+                                this.estimatedPrice = estimatedPrice;
+                                return estimatedPrice;
+                            }
+                        };
+                        
+                        priceList.push(card);
+                    } catch (error) {
+                        console.warn(`Error processing line ${i}:`, error);
+                    }
+                }
+                
+                processedLines = endIndex - 1;
+                const progress = ((processedLines / (totalLines - 1)) * 100).toFixed(1);
+                
+                const priceListStatus = document.getElementById('price-list-status');
+                priceListStatus.textContent = `Processing: ${progress}% (${processedLines.toLocaleString()} of ${(totalLines - 1).toLocaleString()} cards)`;
+                
+                if (processedLines < totalLines - 1) {
+                    setTimeout(processChunk, 10);
+                } else {
+                    priceListStatus.textContent = `Price list updated: ${priceList.length.toLocaleString()} cards`;
+                    priceListStatus.className = 'price-list-status price-list-loaded';
+                    console.log(`Updated price list with ${priceList.length} cards`);
+                    
+                    if (selectedCard) {
+                        displayCardDetails(selectedCard);
+                    }
+                    
+                    try {
+                        const sampleData = priceList.slice(0, 1000);
+                        localStorage.setItem('priceListSample', JSON.stringify(sampleData));
+                        localStorage.setItem('priceListCount', priceList.length.toString());
+                    } catch (storageError) {
+                        console.warn('Could not save price list sample to localStorage:', storageError.message);
+                    }
+                }
             }
             
-            // Clear existing rows except the empty row
-            const rows = inventoryBody.querySelectorAll('tr:not(#empty-inventory-row)');
-            rows.forEach(row => row.remove());
+            processChunk();
+        }
+
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
             
-            // Add inventory items
-            inventory.forEach(item => {
-                const row = document.createElement('tr');
-                row.dataset.id = item.id;
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
                 
-                // Get the card image URL
-                let imageUrl = '';
-                if (item.card.image_uris && item.card.image_uris.small) {
-                    imageUrl = item.card.image_uris.small;
-                } else if (item.card.card_faces && item.card.card_faces[0].image_uris) {
-                    imageUrl = item.card.card_faces[0].image_uris.small;
+                if (char === '"') {
+                    if (inQuotes && line[i + 1] === '"') {
+                        current += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current);
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            
+            result.push(current);
+            return result;
+        }
+
+        function loadSavedData() {
+            try {
+                const savedPriceList = localStorage.getItem('priceListSample');
+                const savedCount = localStorage.getItem('priceListCount');
+                
+                if (savedPriceList && savedCount) {
+                    priceList = JSON.parse(savedPriceList);
+                    const priceListStatus = document.getElementById('price-list-status');
+                    priceListStatus.textContent = `Price list loaded: ${savedCount} cards (sample)`;
+                    priceListStatus.className = 'price-list-status price-list-loaded';
+                }
+                
+                // Load saved inventory
+                const savedInventory = localStorage.getItem('inventory');
+                if (savedInventory) {
+                    inventory = JSON.parse(savedInventory);
+                    updateInventoryTable();
+                    updatePricingTable();
+                    updatePricingStatistics();
+                    console.log(`Loaded ${inventory.length} inventory items from localStorage`);
+                }
+            } catch (error) {
+                console.warn('Error loading saved data:', error);
+            }
+        }
+
+        function updateCardTable(cards) {
+            const tbody = document.getElementById('card-table-body');
+            tbody.innerHTML = '';
+            
+            if (cards.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center">No cards to display</td></tr>';
+                return;
+            }
+            
+            cards.forEach(card => {
+                const row = document.createElement('tr');
+                if (card.priceChanged) {
+                    row.classList.add('price-changed');
                 }
                 
                 row.innerHTML = `
+                    <td>${escapeHtml(card.name)}</td>
+                    <td>${escapeHtml(card.set)}</td>
+                    <td>${escapeHtml(card.condition)}</td>
                     <td>
-                        <div class="d-flex align-items-center">
-                            <img src="${imageUrl}" alt="${item.card.name}" class="me-2" style="width: 30px; height: 42px; object-fit: cover;">
-                            ${item.card.name}
-                        </div>
+                        <input type="number" class="quantity-input" value="${card.quantity}" 
+                               onchange="updateCardQuantity('${card.tcgplayerId}', this.value)">
                     </td>
-                    <td>${item.card.set_name}</td>
-                    <td>${item.condition}</td>
-                    <td>${item.quantity}</td>
-                    <td>$${item.price.toFixed(2)}</td>
-                    <td>$${item.total.toFixed(2)}</td>
-                    <td>
-                        <button class="btn btn-sm btn-danger remove-btn" data-id="${item.id}">Remove</button>
-                    </td>
+                    <td>$${card.marketPrice.toFixed(2)}</td>
+                    <td>$${card.lowPrice.toFixed(2)}</td>
+                    <td>$${card.lowWithShipping.toFixed(2)}</td>
+                    <td>$${card.originalPrice.toFixed(2)}</td>
+                    <td>$${card.calculatedPrice.toFixed(2)}</td>
                 `;
                 
-                inventoryBody.appendChild(row);
+                tbody.appendChild(row);
             });
-            
-            // Add event listeners to remove buttons
-            document.querySelectorAll('.remove-btn').forEach(button => {
-                button.addEventListener('click', function() {
-                    const id = parseInt(this.dataset.id);
-                    removeFromInventory(id);
-                });
-            });
-            
-            // If inventory is empty, show empty message
-            if (inventory.length === 0) {
-                inventoryBody.innerHTML = `
-                    <tr id="empty-inventory-row">
-                        <td colspan="7" class="text-center">No cards in inventory</td>
-                    </tr>
-                `;
-            }
         }
-        
-        function removeFromInventory(id) {
-            const index = inventory.findIndex(item => item.id === id);
-            if (index !== -1) {
-                inventory.splice(index, 1);
-                updateInventoryTable();
-            }
+
+        function updateStatistics() {
+            const totalCards = pricingService.cards.length;
+            const totalValue = pricingService.cards.reduce((sum, card) => sum + (card.calculatedPrice * card.quantity), 0);
+            
+            document.getElementById('total-cards').textContent = totalCards;
+            document.getElementById('total-value').textContent = `$${totalValue.toFixed(2)}`;
         }
-        
-        function exportInventory() {
-            if (inventory.length === 0) {
-                alert('Inventory is empty');
-                return;
-            }
+
+        function showImportStatus(message, type) {
+            const statusDiv = document.getElementById('import-status');
+            statusDiv.textContent = message;
+            statusDiv.className = `alert alert-${type}`;
+            statusDiv.classList.remove('d-none');
             
-            // Create CSV content with TCGplayer format
-            const headers = [
-                'TCGplayer Id',
-                'Product Line',
-                'Set Name',
-                'Product Name',
-                'Title',
-                'Number',
-                'Rarity',
-                'Condition',
-                'TCG Market Price',
-                'TCG Direct Low',
-                'TCG Low Price With Shipping',
-                'TCG Low Price',
-                'Total Quantity',
-                'Add to Quantity',
-                'TCG Marketplace Price',
-                'Photo URL'
-            ];
-            
-            let csvContent = headers.join(',') + '\n';
-            
-            inventory.forEach(item => {
-                const card = item.card;
-                
-                // Helper function to properly escape CSV values
-                const escapeCSV = (value) => {
-                    // Handle NULL, undefined, or empty values as truly empty fields
-                    if (value === null || value === undefined || value === '') {
-                        return '';  // Return empty field instead of quoted empty string
-                    }
-                    const str = String(value);
-                    // Always quote non-empty strings to ensure proper CSV formatting
-                    return '"' + str.replace(/"/g, '""') + '"';
-                };
-                
-                const row = [
-                    escapeCSV(card.tcgplayer_id || ''),
-                    escapeCSV('Magic'),
-                    escapeCSV(card.set_name || ''),
-                    escapeCSV(card.name || ''),
-                    escapeCSV(''),
-                    escapeCSV(card.collector_number || ''),
-                    escapeCSV(card.rarity ? card.rarity.charAt(0).toUpperCase() : ''),
-                    escapeCSV(item.condition || 'Near Mint'),
-                    escapeCSV(card.prices?.usd || '0'),
-                    escapeCSV('0'),
-                    escapeCSV(card.prices?.usd || '0'),
-                    escapeCSV(card.prices?.usd || '0'),
-                    escapeCSV(item.quantity || '1'),
-                    escapeCSV('0'),
-                    escapeCSV(item.price?.toFixed(2) || '0'),
-                    escapeCSV(card.image_uris?.normal || card.image_uris?.large || '')
-                ];
-                
-                csvContent += row.join(',') + '\n';
-            });
-            
-            // Create download link
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            setTimeout(() => {
+                statusDiv.classList.add('d-none');
+            }, 5000);
+        }
+
+        function downloadCSV(content, filename) {
+            const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.setAttribute('href', url);
-            link.setAttribute('download', 'tcg_inventory.csv');
+            link.setAttribute('download', filename);
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
         }
-        
-        function showLoading() {
-            loadingIndicator.style.display = 'block';
-        }
-        
-        function hideLoading() {
-            loadingIndicator.style.display = 'none';
-        }
-        
-        function showError(message) {
-            errorMessage.textContent = message;
-            errorMessage.style.display = 'block';
-        }
-        
-        function hideError() {
-            errorMessage.style.display = 'none';
-        }
-        
-        // Update price list button
-        document.getElementById('update-price-list').addEventListener('click', function() {
-            // Create a file input element
-            const fileInput = document.createElement('input');
-            fileInput.type = 'file';
-            fileInput.accept = '.csv';
-            
-            // When a file is selected
-            fileInput.addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (!file) return;
+
+        function sortCards(cards) {
+            return cards.sort((a, b) => {
+                let aVal, bVal;
                 
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const csvText = e.target.result;
-                    try {
-                        priceList = parsePriceListCSV(csvText);
-                        priceListStatus.textContent = `Price list updated: ${priceList.length} cards`;
-                        priceListStatus.className = 'price-list-status price-list-loaded';
-                        console.log(`Updated price list with ${priceList.length} cards`);
+                switch (currentSort.column) {
+                    case 'name':
+                        aVal = a.name.toLowerCase();
+                        bVal = b.name.toLowerCase();
+                        break;
+                    case 'set':
+                        aVal = a.set.toLowerCase();
+                        bVal = b.set.toLowerCase();
+                        break;
+                    case 'condition':
+                        aVal = a.condition.toLowerCase();
+                        bVal = b.condition.toLowerCase();
+                        break;
+                    case 'quantity':
+                        aVal = a.quantity;
+                        bVal = b.quantity;
+                        break;
+                    case 'marketPrice':
+                        aVal = a.marketPrice;
+                        bVal = b.marketPrice;
+                        break;
+                    case 'lowPrice':
+                        aVal = a.lowPrice;
+                        bVal = b.lowPrice;
+                        break;
+                    case 'lowShipping':
+                        aVal = a.lowWithShipping;
+                        bVal = b.lowWithShipping;
+                        break;
+                    case 'originalPrice':
+                        aVal = a.originalPrice;
+                        bVal = b.originalPrice;
+                        break;
+                    case 'calculatedPrice':
+                        aVal = a.calculatedPrice;
+                        bVal = b.calculatedPrice;
+                        break;
+                    default:
+                        return 0;
+                }
+                
+                if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
+                if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Make functions globally accessible
+        window.updateCardQuantity = function(cardId, newQuantity) {
+            if (window.pricingService) {
+                window.pricingService.updateCardQuantity(cardId, parseInt(newQuantity));
+                updateStatistics();
+            }
+        };
+
+        // Inventory import functions
+        function importInventoryFromCSV(csvText) {
+            const lines = csvText.split('\n');
+            const headers = parseCSVLine(lines[0]);
+            
+            // Clear existing inventory
+            inventory = [];
+            
+            // Process each line (skip header)
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                
+                try {
+                    const values = parseCSVLine(lines[i]);
+                    if (values.length !== headers.length) continue;
+                    
+                    const item = {
+                        tcgplayerId: values[0].replace(/"/g, ''),
+                        productLine: values[1].replace(/"/g, ''),
+                        setName: values[2].replace(/"/g, ''),
+                        productName: values[3].replace(/"/g, ''),
+                        title: values[4].replace(/"/g, ''),
+                        number: values[5].replace(/"/g, ''),
+                        rarity: values[6].replace(/"/g, ''),
+                        condition: values[7].replace(/"/g, ''),
+                        tcgMarketPrice: parseFloat(values[8]) || 0,
+                        tcgDirectLow: values[9].replace(/"/g, ''),
+                        tcgLowWithShipping: parseFloat(values[10]) || 0,
+                        tcgLowPrice: parseFloat(values[11]) || 0,
+                        totalQuantity: parseInt(values[12]) || 0,
+                        addToQuantity: parseInt(values[13]) || 0,
+                        tcgMarketplacePrice: parseFloat(values[14]) || 0,
+                        photoUrl: values[15].replace(/"/g, ''),
                         
-                        // If a card is currently selected, update its price information
-                        if (selectedCard) {
-                            displayCardDetails(selectedCard);
+                        // Calculate price based on TCG pricing rules
+                        calculatePrice: function() {
+                            const marketPrice = this.tcgMarketPrice;
+                            const lowPrice = this.tcgLowPrice;
+                            const lowWithShipping = this.tcgLowWithShipping;
+                            
+                            let estimatedPrice;
+                            
+                            if (marketPrice <= 0.30) {
+                                estimatedPrice = Math.max(0.50, lowPrice);
+                            } else if (marketPrice > 30) {
+                                estimatedPrice = marketPrice;
+                            } else {
+                                const avgLowAndMarket = (lowWithShipping + marketPrice) / 2;
+                                estimatedPrice = Math.max(0.50, Math.max(lowPrice, avgLowAndMarket));
+                            }
+                            
+                            this.estimatedPrice = estimatedPrice;
+                            return estimatedPrice;
                         }
-                        
-                        // Try to save to localStorage but don't fail if it exceeds quota
-                        try {
-                            localStorage.setItem('priceListCSV', csvText);
-                        } catch (storageError) {
-                            console.warn('Could not save price list to localStorage (likely exceeded quota):', storageError.message);
-                            priceListStatus.textContent = `Price list updated: ${priceList.length} cards (not saved to local storage - file too large)`;
-                        }
-                    } catch (error) {
-                        priceListStatus.textContent = `Error: ${error.message}`;
-                        priceListStatus.className = 'price-list-status price-list-error';
-                        console.error('Error parsing price list:', error);
-                    }
-                };
-                reader.readAsText(file);
+                    };
+                    
+                    // Calculate price for this item
+                    item.calculatePrice();
+                    
+                    inventory.push(item);
+                } catch (error) {
+                    console.warn(`Error processing inventory line ${i}:`, error);
+                }
+            }
+            
+            // Update the inventory table
+            updateInventoryTable();
+            
+            // Update pricing table if we're on the pricing tab
+            updatePricingTable();
+            updatePricingStatistics();
+            
+            // Save to localStorage
+            try {
+                localStorage.setItem('inventory', JSON.stringify(inventory));
+            } catch (storageError) {
+                console.warn('Could not save inventory to localStorage:', storageError.message);
+            }
+            
+            console.log(`Imported ${inventory.length} inventory items`);
+        }
+
+        function updateInventoryTable() {
+            const tbody = document.getElementById('card-table-body');
+            
+            if (inventory.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center">No inventory loaded. Import inventory to get started.</td></tr>';
+                return;
+            }
+            
+            // Clear existing rows
+            tbody.innerHTML = '';
+            
+            inventory.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${escapeHtml(item.productName || item.title)}</td>
+                    <td>${escapeHtml(item.setName)}</td>
+                    <td>${escapeHtml(item.condition)}</td>
+                    <td>
+                        <input type="number" class="quantity-input" value="${item.totalQuantity}" 
+                               onchange="updateInventoryQuantity('${item.tcgplayerId}', this.value)">
+                    </td>
+                    <td>$${item.tcgMarketPrice.toFixed(2)}</td>
+                    <td>$${item.tcgLowPrice.toFixed(2)}</td>
+                    <td>$${item.tcgLowWithShipping.toFixed(2)}</td>
+                    <td>$${item.tcgMarketplacePrice.toFixed(2)}</td>
+                    <td>$${item.estimatedPrice.toFixed(2)}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function showInventoryImportStatus(message, type) {
+            const statusDiv = document.getElementById('inventory-import-status');
+            statusDiv.textContent = message;
+            statusDiv.className = `alert alert-${type}`;
+            statusDiv.classList.remove('d-none');
+            
+            setTimeout(() => {
+                statusDiv.classList.add('d-none');
+            }, 5000);
+        }
+
+        // Pricing tool functions - now just calls the main inventory table update
+        function updatePricingTable() {
+            updateInventoryTable();
+        }
+
+        function updatePricingStatistics() {
+            const totalCards = inventory.length;
+            const totalValue = inventory.reduce((sum, item) => sum + (item.estimatedPrice * item.totalQuantity), 0);
+            const avgPrice = totalCards > 0 ? totalValue / inventory.reduce((sum, item) => sum + item.totalQuantity, 0) : 0;
+            
+            document.getElementById('total-cards').textContent = totalCards;
+            document.getElementById('total-value').textContent = `$${totalValue.toFixed(2)}`;
+            document.getElementById('avg-price').textContent = `$${avgPrice.toFixed(2)}`;
+        }
+
+        function showPricingStatus(message, type) {
+            // Create a temporary status message
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            statusDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            // Insert at the top of the pricing panel
+            const pricingPanel = document.getElementById('pricing-panel');
+            pricingPanel.insertBefore(statusDiv, pricingPanel.firstChild);
+            
+            setTimeout(() => {
+                if (statusDiv.parentNode) {
+                    statusDiv.remove();
+                }
+            }, 5000);
+        }
+
+        function exportInventoryToCSV() {
+            if (inventory.length === 0) {
+                throw new Error('No inventory to export');
+            }
+            
+            const headers = [
+                'TCGplayer Id', 'Product Line', 'Set Name', 'Product Name', 'Title', 'Number', 
+                'Rarity', 'Condition', 'TCG Market Price', 'TCG Direct Low', 'TCG Low Price With Shipping', 
+                'TCG Low Price', 'Total Quantity', 'Add to Quantity', 'TCG Marketplace Price', 'Photo URL'
+            ];
+            
+            let csvContent = headers.join(',') + '\n';
+            
+            inventory.forEach(item => {
+                const row = [
+                    escapeCSV(item.tcgplayerId || ''),
+                    escapeCSV(item.productLine || ''),
+                    escapeCSV(item.setName || ''),
+                    escapeCSV(item.productName || ''),
+                    escapeCSV(item.title || ''),
+                    escapeCSV(item.number || ''),
+                    escapeCSV(item.rarity || ''),
+                    escapeCSV(item.condition || ''),
+                    escapeCSV(item.tcgMarketPrice === 0 ? '' : item.tcgMarketPrice),
+                    escapeCSV(item.tcgDirectLow || ''),
+                    escapeCSV(item.tcgLowWithShipping === 0 ? '' : item.tcgLowWithShipping),
+                    escapeCSV(item.tcgLowPrice === 0 ? '' : item.tcgLowPrice),
+                    escapeCSV(item.totalQuantity || ''),
+                    escapeCSV(item.addToQuantity || ''),
+                    escapeCSV(item.estimatedPrice === 0 ? '' : item.estimatedPrice),
+                    escapeCSV(item.photoUrl || '')
+                ];
+                
+                csvContent += row.join(',') + '\n';
             });
             
-            // Trigger the file input click
-            fileInput.click();
-        });
+            return csvContent;
+        }
+
+        function updateInventoryQuantity(cardId, newQuantity) {
+            const item = inventory.find(i => i.tcgplayerId === cardId);
+            if (item) {
+                item.totalQuantity = parseInt(newQuantity) || 0;
+                updatePricingStatistics();
+                
+                // Save to localStorage
+                try {
+                    localStorage.setItem('inventory', JSON.stringify(inventory));
+                } catch (storageError) {
+                    console.warn('Could not save inventory to localStorage:', storageError.message);
+                }
+            }
+        }
+
+        // Make functions globally accessible
+        window.updateInventoryQuantity = updateInventoryQuantity;
+
+        // Override displayCardDetails to use price list
+        window.displayCardDetails = function(card) {
+            selectedCard = card;
+            const container = document.getElementById('card-details-container');
+            
+            if (!card) {
+                container.innerHTML = '<p class="text-center">Select a card to view details</p>';
+                return;
+            }
+            
+            // Find matching card in price list
+            let priceInfo = null;
+            if (priceList && priceList.length > 0) {
+                priceInfo = priceList.find(p => 
+                    p.productName.toLowerCase().includes(card.name.toLowerCase()) ||
+                    p.title.toLowerCase().includes(card.name.toLowerCase())
+                );
+            }
+            
+            let priceDisplay = '';
+            if (priceInfo) {
+                const calculatedPrice = priceInfo.calculatePrice();
+                priceDisplay = `
+                    <div class="price-info">
+                        <h5>Pricing Information</h5>
+                        <table>
+                            <tr><td>TCG Market Price:</td><td>$${priceInfo.tcgMarketPrice.toFixed(2)}</td></tr>
+                            <tr><td>TCG Low Price:</td><td>$${priceInfo.tcgLowPrice.toFixed(2)}</td></tr>
+                            <tr><td>TCG Low w/ Shipping:</td><td>$${priceInfo.tcgLowWithShipping.toFixed(2)}</td></tr>
+                            <tr><td class="estimated-price">Calculated Price:</td><td class="estimated-price">$${calculatedPrice.toFixed(2)}</td></tr>
+                        </table>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = `
+                <div class="text-center mb-3">
+                    <img src="${card.image_uris?.normal || card.image_uris?.large || ''}" 
+                         alt="${card.name}" class="card-image" style="max-width: 200px;">
+                </div>
+                <h4>${card.name}</h4>
+                <p><strong>Set:</strong> ${card.set_name}</p>
+                <p><strong>Rarity:</strong> ${card.rarity}</p>
+                <p><strong>Type:</strong> ${card.type_line}</p>
+                ${priceDisplay}
+                <div class="mt-3">
+                    <button class="btn btn-primary btn-sm" onclick="addToInventory('${card.id}')">
+                        Add to Inventory
+                    </button>
+                </div>
+            `;
+        };
     </script>
 </body>
 </html>

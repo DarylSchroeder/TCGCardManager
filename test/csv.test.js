@@ -12,6 +12,16 @@ function escapeCSV(value) {
     return '"' + str.replace(/"/g, '""') + '"';
 }
 
+function cleanImportedField(value) {
+    if (!value || value.trim() === '') {
+        return null;  // Convert empty strings to null for proper export
+    }
+    // Remove surrounding quotes if present
+    const cleaned = value.replace(/^"(.*)"$/, '$1');
+    // Handle escaped quotes
+    return cleaned.replace(/""/g, '"');
+}
+
 function parseCSVLine(line) {
     const fields = [];
     let inQuotes = false;
@@ -125,6 +135,30 @@ function testCSVParsing() {
     console.assert(nivMizzetRow[12] === '0.9800', 'Decimal quantity should be preserved');
     
     console.log('✅ CSV parsing tests passed');
+}
+
+function testRoundTrip() {
+    console.log('Testing round-trip CSV conversion...');
+    
+    // Test importing CSV with quoted empty fields and re-exporting
+    const csvWithEmptyFields = '"374437","Magic","9th Edition","Sengir Vampire","","","R","Lightly Played","0.41",""';
+    const fields = csvWithEmptyFields.split(',');
+    
+    // Clean imported fields (convert empty strings to null)
+    const cleanedFields = fields.map(field => cleanImportedField(field));
+    
+    // Re-export the cleaned fields
+    const reExported = cleanedFields.map(field => escapeCSV(field)).join(',');
+    
+    console.assert(!reExported.includes('""",'), 'Re-exported CSV should not contain """, patterns');
+    console.assert(reExported.includes(',,'), 'Re-exported CSV should contain proper empty fields (,,)');
+    
+    // Verify specific transformations
+    console.assert(cleanImportedField('""') === null, 'Empty quoted string should become null');
+    console.assert(cleanImportedField('') === null, 'Empty string should become null');
+    console.assert(cleanImportedField('"test"') === 'test', 'Quoted string should be unquoted');
+    
+    console.log('✅ Round-trip conversion tests passed');
 }
 
 function testCSVEscaping() {
