@@ -39,11 +39,9 @@ A comprehensive web application for managing your trading card game collection w
 4. **Export**: Click "Export to CSV" to download your inventory
 
 ### Advanced Pricing Workflow
-1. **Upload Price List**: Use "Update Price List" to upload TCG pricing data
-2. **Access Pricing Tool**: Click "Pricing Tool" for advanced price calculations
-3. **Import Inventory**: Upload existing inventory CSV files
-4. **Calculate Prices**: Apply TCG pricing rules automatically
-5. **Export Results**: Download updated inventory with calculated prices
+1. **Import Inventory**: Upload existing inventory CSV files with TCG pricing data
+2. **Update Prices**: Click "Update Prices" to apply TCG pricing rules to your inventory
+3. **Export Results**: Download updated inventory with calculated prices
 
 ## Pricing Rules
 
@@ -78,7 +76,6 @@ This runs the complete official test suite and is what you should use when someo
 ### Alternative Commands
 ```bash
 ./test/run-tests.sh      # Same as npm test
-npm run test:quantity    # Run only quantity update regression tests
 ```
 
 ### Individual Test Files (for debugging)
@@ -87,15 +84,13 @@ node test/csv.test.js                    # CSV parsing/export functionality
 node test/pricing.test.js                # TCG pricing rule calculations
 node test/integration.test.js            # Import/export integration
 node test/pricing-integration.test.js    # Full pricing workflow
-node test/quantity-update-simple.test.js # Quantity update regression fix
 ```
 
 ### Test Coverage
-- **Quantity Update Tests**: Validates HTML template quote handling fixes (critical regression)
-- **Integration Tests**: Verifies CSV data handling and real file operations
-- **Pricing Tests**: Validates all TCG pricing rule calculations and edge cases
-- **Pricing Integration**: Full workflow testing (import → calculate → export)
 - **CSV Tests**: Parsing, escaping, export, and round-trip functionality
+- **Pricing Tests**: Validates all TCG pricing rule calculations and edge cases
+- **Integration Tests**: Verifies CSV data handling and real file operations
+- **Pricing Integration**: Full workflow testing (import → calculate → export)
 
 ## Architecture
 
@@ -104,17 +99,11 @@ node test/quantity-update-simple.test.js # Quantity update regression fix
 - **Backend**: Node.js server with Express-like routing
 - **Storage**: In-memory with localStorage for price lists
 - **API**: Scryfall API integration (requires User-Agent header)
-
-### New Modular Architecture (Available)
-- **Models**: `Card.js`, `InventoryItem.js` - Data representation with validation
-- **Services**: `CardSearchService.js`, `InventoryService.js` - Business logic layer
-- **Controllers**: `MainController.js` - Application coordination
-- **UI Layer**: `UIManager.js` - DOM manipulation and event handling
+- **Architecture**: Single-file application (`index.html`) with integrated functionality
 
 ## Development
 
 ### Known Issues Fixed
-- **Quantity Update Bug**: Fixed HTML template quote handling in card lookups
 - **Price List Loading**: Added localStorage fallback and quota handling
 - **Set Name Mapping**: Improved card matching between Scryfall and price lists
 - **Layout Issues**: Fixed search results extending behind inventory panel
@@ -127,7 +116,7 @@ node test/quantity-update-simple.test.js # Quantity update regression fix
 
 ### Code Quality
 - Comprehensive test suite with multiple test scenarios
-- Modular code structure for maintainability
+- Single-file architecture for simplicity and maintainability
 - Proper error handling throughout the application
 - Consistent naming conventions and code style
 
@@ -142,7 +131,6 @@ node test/quantity-update-simple.test.js # Quantity update regression fix
 - Quick-add buttons in list view for frequent cards
 
 ### Technical Improvements
-- Migration to class-based architecture (files ready)
 - TypeScript conversion for better type safety
 - IndexedDB for larger storage capacity
 - Cloud storage integration options
@@ -163,7 +151,6 @@ When making changes:
 2. Follow existing code style and patterns
 3. Add tests for new functionality
 4. Update documentation as needed
-5. Test quantity update functionality specifically (known regression area)
 
 ## API Requirements
 

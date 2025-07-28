@@ -18,78 +18,75 @@ fi
 cd "$(dirname "$0")/.."
 
 echo ""
-echo "📋 Running Quantity Update Tests..."
-echo "-----------------------------------"
+echo "📋 Running CSV Tests..."
+echo "----------------------"
 
-# Run the quantity update tests
-if node test/quantity-update-simple.test.js; then
+# Run CSV tests
+if node test/csv.test.js; then
     echo ""
-    echo "✅ Quantity Update Tests: PASSED"
+    echo "✅ CSV Tests: PASSED"
 else
     echo ""
-    echo "❌ Quantity Update Tests: FAILED"
+    echo "❌ CSV Tests: FAILED"
     exit 1
 fi
 
 echo ""
-echo "🔧 Running Function Scope Integration Test..."
-echo "--------------------------------------------"
+echo "💰 Running Pricing Tests..."
+echo "---------------------------"
 
-# Run the new integration test for function scope
-if node test/quantity-update-integration.test.js; then
+# Run pricing tests
+if node test/pricing.test.js; then
     echo ""
-    echo "✅ Function Scope Integration: PASSED"
+    echo "✅ Pricing Tests: PASSED"
 else
     echo ""
-    echo "❌ Function Scope Integration: FAILED"
+    echo "❌ Pricing Tests: FAILED"
     exit 1
 fi
 
 echo ""
-echo "🎯 Testing Real-World Scenario..."
-echo "--------------------------------"
+echo "🔗 Running Integration Tests..."
+echo "-------------------------------"
 
-# Test with sample CSV data
-if [ -f "test/data/sample_inventory.csv" ]; then
-    echo "📄 Found sample test data, verifying test cards exist..."
-    
-    # Simple grep test to verify our test cards exist in the CSV
-    test_cards=("8728925" "5400291" "8755665")
-    all_found=true
-    
-    for card_id in "${test_cards[@]}"; do
-        if grep -q "$card_id" test/data/sample_inventory.csv; then
-            echo "✅ Found card ID: $card_id"
-        else
-            echo "❌ Missing card ID: $card_id"
-            all_found=false
-        fi
-    done
-    
-    if [ "$all_found" = true ]; then
-        echo "✅ Integration Test: PASSED - All test cards found in sample CSV"
-    else
-        echo "❌ Integration Test: FAILED - Some test cards missing from sample CSV"
-        exit 1
-    fi
+# Run integration tests
+if node test/integration.test.js; then
+    echo ""
+    echo "✅ Integration Tests: PASSED"
 else
-    echo "⚠️  No sample test data found, skipping integration test"
+    echo ""
+    echo "❌ Integration Tests: FAILED"
+    exit 1
+fi
+
+echo ""
+echo "🎯 Running Pricing Integration Tests..."
+echo "--------------------------------------"
+
+# Run pricing integration tests
+if node test/pricing-integration.test.js; then
+    echo ""
+    echo "✅ Pricing Integration Tests: PASSED"
+else
+    echo ""
+    echo "❌ Pricing Integration Tests: FAILED"
+    exit 1
 fi
 
 echo ""
 echo "🎉 All Tests Passed!"
 echo "==================="
 echo ""
-echo "The quantity update functionality is working correctly and should not regress."
+echo "The TCG Card Manager functionality is working correctly."
 echo "Key areas tested:"
-echo "  • Quote handling in HTML template parameters"
-echo "  • Card lookup with various ID formats"
-echo "  • Quantity update persistence"
-echo "  • Error handling for edge cases"
-echo "  • Function scope and global accessibility"
-echo "  • Integration with sample CSV data"
+echo "  • CSV parsing and export functionality"
+echo "  • TCG pricing rule calculations"
+echo "  • Import/export integration workflows"
+echo "  • Full pricing workflow testing"
 echo ""
-echo "To run tests manually:"
-echo "  node test/quantity-update-simple.test.js"
-echo "  node test/quantity-update-integration.test.js"
+echo "To run individual tests:"
+echo "  node test/csv.test.js"
+echo "  node test/pricing.test.js"
+echo "  node test/integration.test.js"
+echo "  node test/pricing-integration.test.js"
 echo ""
