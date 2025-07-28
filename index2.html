@@ -335,6 +335,93 @@
             updateInventoryDisplay();
         });
 
+        // ===== PHASE 1: UTILITY FUNCTIONS =====
+        
+        /**
+         * Extract base collector number by removing foil suffixes
+         * @param {string} collectorNumber - Original collector number (e.g., "319★", "83F")
+         * @returns {string} - Base collector number (e.g., "319", "83")
+         */
+        function getBaseCollectorNumber(collectorNumber) {
+            if (!collectorNumber) return '';
+            return collectorNumber.replace(/[★☆*F]/g, '').trim();
+        }
+
+        /**
+         * Select representative card from a group, preferring non-foil variants
+         * @param {Array} cardGroup - Array of cards with same base collector number
+         * @returns {Object} - Representative card object
+         */
+        function getRepresentativeCard(cardGroup) {
+            if (!cardGroup || cardGroup.length === 0) return null;
+            
+            // Prefer non-foil cards (those without foil indicators in collector number)
+            const nonFoilCard = cardGroup.find(card => {
+                const collectorNum = card.collector_number || '';
+                return !collectorNum.includes('★') && !collectorNum.includes('☆') && !collectorNum.includes('*');
+            });
+            
+            return nonFoilCard || cardGroup[0];
+        }
+
+        /**
+         * Check if a set name indicates a promo set
+         * @param {string} setName - Set name to check
+         * @returns {boolean} - True if promo set
+         */
+        function isPromoSet(setName) {
+            if (!setName) return false;
+            return setName.toLowerCase().includes('promo');
+        }
+
+        /**
+         * Generate set name variations for matching, excluding promo cross-matching
+         * @param {string} setName - Original set name
+         * @returns {Array} - Array of set name variations
+         */
+        function generateSetVariations(setName) {
+            if (!setName || isPromoSet(setName)) {
+                return []; // Promo sets don't get variations
+            }
+            
+            const variations = [
+                setName.replace('Seventh Edition', '7th Edition'),
+                setName.replace('7th Edition', 'Seventh Edition'),
+                setName.replace('Core Set ', ''),
+                setName.replace(' Edition', ''),
+                setName.replace('2020', 'Core Set 2020'),
+                setName.replace('2021', 'Core Set 2021'),
+                setName.replace('Magic 2010', 'M10'),
+                setName.replace('Magic 2011', 'M11'),
+                setName.replace('Magic 2012', 'M12'),
+                setName.replace('Magic 2013', 'M13'),
+                setName.replace('Magic 2014', 'M14'),
+                setName.replace('Magic 2015', 'M15')
+            ];
+            
+            // Filter out original name and any promo variations
+            return variations.filter(v => v !== setName && !isPromoSet(v));
+        }
+
+        /**
+         * Deduplicate foil variants by grouping cards by base collector number
+         * @param {Array} cards - Array of card objects
+         * @returns {Object} - Object with baseNumber as keys, card arrays as values
+         */
+        function deduplicateFoilVariants(cards) {
+            const groups = {};
+            
+            cards.forEach(card => {
+                const baseNumber = getBaseCollectorNumber(card.collector_number);
+                if (!groups[baseNumber]) {
+                    groups[baseNumber] = [];
+                }
+                groups[baseNumber].push(card);
+            });
+            
+            return groups;
+        }
+
         // Search functionality
         function handleSearchKeypress(event) {
             if (event.key === 'Enter') {
@@ -418,14 +505,14 @@
             });
 
             container.innerHTML = Object.entries(cardGroups).slice(0, 10).map(([cardName, cards]) => {
-                // Sort cards by release date (newer first) - use released_at field
+                // Sort cards by release date (newer first)
                 const sortedCards = cards.sort((a, b) => {
                     const dateA = new Date(a.released_at || '1900-01-01');
                     const dateB = new Date(b.released_at || '1900-01-01');
-                    return dateB - dateA; // Newer first
+                    return dateB - dateA;
                 });
 
-                // Group by set name to handle duplicates
+                // Group by set name
                 const setGroups = {};
                 sortedCards.forEach(card => {
                     if (!setGroups[card.set_name]) {
@@ -434,29 +521,13 @@
                     setGroups[card.set_name].push(card);
                 });
 
-                const defaultCard = sortedCards[0]; // Use newest as default
+                const defaultCard = sortedCards[0];
                 const cleanName = cardName.replace(/[^a-zA-Z0-9]/g, '');
 
-                // Check if default set has multiple collector numbers (after deduplicating foil variants)
+                // Use utility functions for collector number logic
                 const defaultSetCards = setGroups[defaultCard.set_name];
-                
-                // Deduplicate foil variants - group by base collector number (remove ★, etc.)
-                const collectorGroups = {};
-                defaultSetCards.forEach(card => {
-                    const baseNumber = (card.collector_number || '').replace(/[★☆*]/g, '').trim();
-                    if (!collectorGroups[baseNumber]) {
-                        collectorGroups[baseNumber] = [];
-                    }
-                    collectorGroups[baseNumber].push(card);
-                });
-                
-                const uniqueCollectorNumbers = Object.keys(collectorGroups);
-                const hasMultipleCollectorNumbers = uniqueCollectorNumbers.length > 1;
-                
-                // Use a non-foil card as representative (prefer non-foil over foil)
-                const representativeCard = collectorGroups[uniqueCollectorNumbers[0]].find(c => 
-                    !(c.collector_number || '').includes('★')
-                ) || collectorGroups[uniqueCollectorNumbers[0]][0];
+                const collectorGroups = deduplicateFoilVariants(defaultSetCards);
+                const representativeCard = getRepresentativeCard(collectorGroups[Object.keys(collectorGroups)[0]]);
 
                 return `
                     <div class="card mb-3">
@@ -474,40 +545,13 @@
                                 </div>
                                 <div class="col-2">
                                     <select class="form-select form-select-sm" id="set-${cleanName}" onchange="updateCardVersion('${cardName}', this.value)">
-                                        ${Object.entries(setGroups).map(([setName, setCards]) => {
-                                            const hasInventory = setCards.some(card => hasInventoryForCard(cardName, setName, card.collector_number));
-                                            const totalCount = setCards.reduce((sum, card) => sum + getInventoryCountForCard(cardName, setName, card.collector_number), 0);
-                                            const displayText = hasInventory ? `${setName} ✓ (${totalCount})` : setName;
-                                            return `<option value="${setCards[0].id}" data-set-name="${setName}" ${hasInventory ? 'style="background-color: #d4edda; font-weight: bold;"' : ''}>${displayText}</option>`;
-                                        }).join('')}
+                                        ${generateSetDropdown(cardName, setGroups)}
                                     </select>
                                 </div>
                                 <div class="col-2">
                                     <div id="collector-container-${cleanName}">
-                                        ${hasMultipleCollectorNumbers ? `
-                                            <small class="text-muted d-block">Collector #</small>
-                                            <select class="form-select form-select-sm" id="collector-${cleanName}" onchange="updateCollectorNumber('${cardName}', this.value)">
-                                                ${uniqueCollectorNumbers.map(baseNumber => {
-                                                    // Use non-foil card as representative (prefer non-foil over foil)
-                                                    const repCard = collectorGroups[baseNumber].find(c => 
-                                                        !(c.collector_number || '').includes('★')
-                                                    ) || collectorGroups[baseNumber][0];
-                                                    const hasInventory = hasInventoryForCard(cardName, repCard.set_name, repCard.collector_number);
-                                                    const count = getInventoryCountForCard(cardName, repCard.set_name, repCard.collector_number);
-                                                    const displayText = hasInventory ? `${baseNumber || 'N/A'} ✓ (${count})` : (baseNumber || 'N/A');
-                                                    return `<option value="${repCard.id}" ${hasInventory ? 'style="background-color: #d4edda; font-weight: bold;"' : ''}>${displayText}</option>`;
-                                                }).join('')}
-                                            </select>
-                                        ` : `
-                                            <small class="text-muted d-block">Collector #</small>
-                                            ${(() => {
-                                                const baseNumber = (representativeCard.collector_number || '').replace(/[F★☆*]/g, '').trim();
-                                                const hasInventory = hasInventoryForCard(cardName, representativeCard.set_name, representativeCard.collector_number);
-                                                const count = getInventoryCountForCard(cardName, representativeCard.set_name, representativeCard.collector_number);
-                                                const displayText = hasInventory ? `${baseNumber || 'N/A'} ✓ (${count})` : (baseNumber || 'N/A');
-                                                return `<span id="collector-span-${cleanName}" ${hasInventory ? 'style="color: #155724; font-weight: bold;"' : ''}>${displayText}</span>`;
-                                            })()}
-                                        `}
+                                        <small class="text-muted d-block">Collector #</small>
+                                        ${generateCollectorNumberDropdown(cardName, defaultSetCards, cleanName)}
                                     </div>
                                 </div>
                                 <div class="col-3">
@@ -536,247 +580,172 @@
             window.allSearchResults = paperCards;
         }
 
-        function getInventoryQuantity(cardName, finish, setName = null, collectorNumber = null) {
-            const condition = finish === 'foil' ? 'Near Mint Foil' : 'Near Mint';
+        // ===== PHASE 2: CORE INVENTORY MATCHING =====
+        
+        /**
+         * Core inventory matching function - finds all inventory matches for a card
+         * @param {string} cardName - Card name to search for
+         * @param {string} setName - Set name (optional)
+         * @param {string} collectorNumber - Collector number (optional)
+         * @param {string} finish - 'foil' or 'normal' (optional, if not specified returns both)
+         * @returns {Array} - Array of matching inventory items
+         */
+        function findInventoryMatches(cardName, setName = null, collectorNumber = null, finish = null) {
+            console.log(`🔍 Core search: "${cardName}" | "${setName}" | #${collectorNumber} | ${finish || 'any'}`);
             
-            if (setName && collectorNumber) {
-                // Use the same matching logic but filter by foil status
-                return getInventoryCountForCardAndFinish(cardName, setName, collectorNumber, finish);
-            } else {
-                // Get total quantity across all versions (fallback for compatibility)
-                return inventory
-                    .filter(item => item.name === cardName && item.condition === condition)
-                    .reduce((total, item) => total + item.quantity, 0);
-            }
-        }
-
-        function getInventoryCountForCardAndFinish(cardName, setName, collectorNumber, finish) {
+            // Get all items with matching name and positive quantity
             const allNameMatches = inventory.filter(item => 
                 item.name.toLowerCase() === cardName.toLowerCase() && item.quantity > 0
             );
             
             if (allNameMatches.length === 0) {
-                return 0;
+                console.log('❌ No name matches found');
+                return [];
             }
             
-            // Filter by foil status
-            const foilMatches = allNameMatches.filter(item => {
-                const isItemFoil = item.condition && item.condition.toLowerCase().includes('foil');
-                const wantFoil = finish === 'foil';
-                return isItemFoil === wantFoil;
-            });
-            
-            if (foilMatches.length === 0) {
-                return 0;
+            // If no set/collector info provided, return all name matches
+            if (!setName || !collectorNumber) {
+                console.log(`✅ Returning ${allNameMatches.length} name-only matches`);
+                return allNameMatches;
             }
             
-            // Clean collector numbers (remove ★, spaces, etc.) and convert to string
-            const cleanCollectorNumber = String(collectorNumber.replace(/[★☆*]/g, '').trim());
+            const cleanCollectorNumber = String(collectorNumber).trim();
             
-            // Strategy 1: Exact match (name + set + collector number + foil status)
-            const exactMatches = foilMatches.filter(item => 
-                item.set === setName &&
-                String(item.number) === cleanCollectorNumber
-            );
-            
-            if (exactMatches.length > 0) {
-                return exactMatches.reduce((total, item) => total + item.quantity, 0);
-            }
-            
-            // Strategy 2: Set variations + name + collector number + foil status
-            // Note: Promo sets should NOT match main sets
-            const setVariations = [];
-            if (!setName.toLowerCase().includes('promo')) {
-                setVariations.push(
-                    setName.replace('Seventh Edition', '7th Edition'),
-                    setName.replace('7th Edition', 'Seventh Edition'),
-                    setName.replace('Core Set ', ''),
-                    setName.replace(' Edition', ''),
-                    setName.replace('2020', 'Core Set 2020'),
-                    setName.replace('2021', 'Core Set 2021'),
-                    setName.replace('Magic 2010', 'M10'),
-                    setName.replace('Magic 2011', 'M11'),
-                    setName.replace('Magic 2012', 'M12'),
-                    setName.replace('Magic 2013', 'M13'),
-                    setName.replace('Magic 2014', 'M14'),
-                    setName.replace('Magic 2015', 'M15')
-                );
-            }
-            const filteredSetVariations = setVariations.filter(v => v !== setName && !v.toLowerCase().includes('promo'));
-            
-            if (filteredSetVariations.length > 0) {
-                const variationMatches = foilMatches.filter(item => 
-                    filteredSetVariations.includes(item.set) &&
-                    String(item.number) === cleanCollectorNumber
-                );
-                
-                if (variationMatches.length > 0) {
-                    return variationMatches.reduce((total, item) => total + item.quantity, 0);
-                }
-            }
-            
-            // Strategy 3: Collector number only (same number, any set, same foil status)
-            const numberMatches = foilMatches.filter(item => 
-                String(item.number) === cleanCollectorNumber
-            );
-            
-            if (numberMatches.length > 0) {
-                return numberMatches.reduce((total, item) => total + item.quantity, 0);
-            }
-            
-            // Strategy 4: No match - return 0
-            return 0;
-        }
-
-        function hasInventoryForCard(cardName, setName, collectorNumber) {
-            console.log(`🔍 "${cardName}" | "${setName}" | #${collectorNumber}`);
-            
-            // First, let's see what we actually have for this card name
-            const allNameMatches = inventory.filter(item => 
-                item.name.toLowerCase() === cardName.toLowerCase() && item.quantity > 0
-            );
-            
-            if (allNameMatches.length === 0) {
-                console.log(`📋 No "${cardName}" found in inventory at all`);
-                return false;
-            }
-            
-            console.log(`📋 Found ${allNameMatches.length} "${cardName}" in inventory:`);
-            allNameMatches.forEach((item, index) => {
-                const foilStatus = item.condition && item.condition.toLowerCase().includes('foil') ? " (FOIL)" : "";
-                console.log(`   [${index + 1}] Set: "${item.set}" | #${item.number}${foilStatus} | Qty: ${item.quantity}`);
-            });
-            
-            // Clean collector numbers (remove ★, spaces, etc.) and convert to string
-            const cleanCollectorNumber = String(collectorNumber.replace(/[★☆*]/g, '').trim());
-            
-            // Strategy 1: Exact match (name + set + collector number)
+            // Strategy 1: Exact match (set + name + collector number)
             const exactMatches = allNameMatches.filter(item => 
-                item.set === setName &&
-                String(item.number) === cleanCollectorNumber
+                item.set === setName && String(item.number) === cleanCollectorNumber
             );
             
             if (exactMatches.length > 0) {
-                console.log(`✅ EXACT MATCH (${exactMatches.length} version(s))`);
-                return true;
+                console.log(`✅ Found ${exactMatches.length} exact matches`);
+                return filterByFinish(exactMatches, finish);
             }
             
             // Strategy 2: Set variations + name + collector number
-            // Note: Promo sets should NOT match main sets
-            const setVariations = [];
-            if (!setName.toLowerCase().includes('promo')) {
-                setVariations.push(
-                    setName.replace('Seventh Edition', '7th Edition'),
-                    setName.replace('7th Edition', 'Seventh Edition'),
-                    setName.replace('Core Set ', ''),
-                    setName.replace(' Edition', ''),
-                    setName.replace('2020', 'Core Set 2020'),
-                    setName.replace('2021', 'Core Set 2021'),
-                    setName.replace('Magic 2010', 'M10'),
-                    setName.replace('Magic 2011', 'M11'),
-                    setName.replace('Magic 2012', 'M12'),
-                    setName.replace('Magic 2013', 'M13'),
-                    setName.replace('Magic 2014', 'M14'),
-                    setName.replace('Magic 2015', 'M15')
-                );
-            }
-            const filteredSetVariations = setVariations.filter(v => v !== setName && !v.toLowerCase().includes('promo'));
+            const setVariations = generateSetVariations(setName);
             
-            if (filteredSetVariations.length > 0) {
-                console.log(`🔄 Trying set variations: ${filteredSetVariations.join(', ')}`);
+            if (setVariations.length > 0) {
+                console.log(`🔄 Trying set variations: ${setVariations.join(', ')}`);
                 const variationMatches = allNameMatches.filter(item => 
-                    filteredSetVariations.includes(item.set) &&
-                    String(item.number) === cleanCollectorNumber
+                    setVariations.includes(item.set) && String(item.number) === cleanCollectorNumber
                 );
                 
                 if (variationMatches.length > 0) {
-                    console.log(`✅ SET VARIATION MATCH (${variationMatches.length} version(s))`);
-                    return true;
+                    console.log(`✅ Found ${variationMatches.length} variation matches`);
+                    return filterByFinish(variationMatches, finish);
                 }
             }
             
-            // Strategy 3: Collector number only (same number, any set)
+            // Strategy 3: Name + collector number only (any set)
             const numberMatches = allNameMatches.filter(item => 
                 String(item.number) === cleanCollectorNumber
             );
             
             if (numberMatches.length > 0) {
-                console.log(`✅ COLLECTOR# MATCH (${numberMatches.length} version(s) - same card, different set)`);
-                return true;
+                console.log(`✅ Found ${numberMatches.length} number-only matches`);
+                return filterByFinish(numberMatches, finish);
             }
             
-            // Strategy 4: No match - don't highlight different versions
-            console.log(`❌ No match - you have different version(s)`);
-            return false;
+            // Strategy 4: Name only (fallback)
+            console.log(`⚠️ Falling back to ${allNameMatches.length} name-only matches`);
+            return filterByFinish(allNameMatches, finish);
+        }
+        
+        /**
+         * Filter inventory matches by finish (foil/normal)
+         * @param {Array} matches - Array of inventory items
+         * @param {string} finish - 'foil' or 'normal' (null = return all)
+         * @returns {Array} - Filtered inventory items
+         */
+        function filterByFinish(matches, finish) {
+            if (!finish) return matches;
+            
+            const targetCondition = finish === 'foil' ? 'Near Mint Foil' : 'Near Mint';
+            return matches.filter(item => item.condition === targetCondition);
+        }
+
+        function getInventoryQuantity(cardName, finish, setName = null, collectorNumber = null) {
+            // Use core matching function
+            const matches = findInventoryMatches(cardName, setName, collectorNumber, finish);
+            return matches.reduce((total, item) => total + item.quantity, 0);
+        }
+
+        function getInventoryCountForCardAndFinish(cardName, setName, collectorNumber, finish) {
+            // Use core matching function
+            const matches = findInventoryMatches(cardName, setName, collectorNumber, finish);
+            return matches.reduce((total, item) => total + item.quantity, 0);
+        }
+
+        function hasInventoryForCard(cardName, setName, collectorNumber) {
+            // Use core matching function - check for ANY finish
+            const matches = findInventoryMatches(cardName, setName, collectorNumber);
+            return matches.length > 0;
         }
 
         function getInventoryCountForCard(cardName, setName, collectorNumber) {
             // This function should count BOTH foil and non-foil versions
             // since they're the same card, just different finishes
-            const allNameMatches = inventory.filter(item => 
-                item.name.toLowerCase() === cardName.toLowerCase() && item.quantity > 0
-            );
+            const matches = findInventoryMatches(cardName, setName, collectorNumber);
+            return matches.reduce((total, item) => total + item.quantity, 0);
+        }
+
+        // ===== PHASE 3: DISPLAY LOGIC HELPERS =====
+        
+        /**
+         * Generate collector number dropdown HTML for a set of cards
+         * @param {string} cardName - Card name
+         * @param {Array} setCards - Cards from the same set
+         * @param {string} cleanName - Sanitized card name for IDs
+         * @returns {string} - HTML for collector number dropdown or span
+         */
+        function generateCollectorNumberDropdown(cardName, setCards, cleanName) {
+            const collectorGroups = deduplicateFoilVariants(setCards);
+            const uniqueCollectorNumbers = Object.keys(collectorGroups);
+            const hasMultipleCollectorNumbers = uniqueCollectorNumbers.length > 1;
             
-            if (allNameMatches.length === 0) {
-                return 0;
-            }
-            
-            // Clean collector numbers (remove ★, spaces, etc.) and convert to string
-            const cleanCollectorNumber = String(collectorNumber.replace(/[★☆*]/g, '').trim());
-            
-            // Strategy 1: Exact match (name + set + collector number, any foil status)
-            const exactMatches = allNameMatches.filter(item => 
-                item.set === setName &&
-                String(item.number) === cleanCollectorNumber
-            );
-            
-            if (exactMatches.length > 0) {
-                return exactMatches.reduce((total, item) => total + item.quantity, 0);
-            }
-            
-            // Strategy 2: Set variations + name + collector number, any foil status
-            // Note: Promo sets should NOT match main sets
-            const setVariations = [];
-            if (!setName.toLowerCase().includes('promo')) {
-                setVariations.push(
-                    setName.replace('Seventh Edition', '7th Edition'),
-                    setName.replace('7th Edition', 'Seventh Edition'),
-                    setName.replace('Core Set ', ''),
-                    setName.replace(' Edition', ''),
-                    setName.replace('2020', 'Core Set 2020'),
-                    setName.replace('2021', 'Core Set 2021'),
-                    setName.replace('Magic 2010', 'M10'),
-                    setName.replace('Magic 2011', 'M11'),
-                    setName.replace('Magic 2012', 'M12'),
-                    setName.replace('Magic 2013', 'M13'),
-                    setName.replace('Magic 2014', 'M14'),
-                    setName.replace('Magic 2015', 'M15')
-                );
-            }
-            const filteredSetVariations = setVariations.filter(v => v !== setName && !v.toLowerCase().includes('promo'));
-            
-            if (filteredSetVariations.length > 0) {
-                const variationMatches = allNameMatches.filter(item => 
-                    filteredSetVariations.includes(item.set) &&
-                    String(item.number) === cleanCollectorNumber
-                );
+            if (!hasMultipleCollectorNumbers) {
+                // Single collector number - show as span
+                const representativeCard = getRepresentativeCard(collectorGroups[uniqueCollectorNumbers[0]]);
+                const baseNumber = getBaseCollectorNumber(representativeCard.collector_number);
+                const hasInventory = hasInventoryForCard(cardName, representativeCard.set_name, representativeCard.collector_number);
+                const count = getInventoryCountForCard(cardName, representativeCard.set_name, representativeCard.collector_number);
+                const displayText = hasInventory ? `${baseNumber || 'N/A'} ✓ (${count})` : (baseNumber || 'N/A');
                 
-                if (variationMatches.length > 0) {
-                    return variationMatches.reduce((total, item) => total + item.quantity, 0);
-                }
+                return `<span id="collector-span-${cleanName}" ${hasInventory ? 'style="color: #155724; font-weight: bold;"' : ''}>${displayText}</span>`;
             }
             
-            // Strategy 3: Collector number only (same number, any set, any foil status)
-            const numberMatches = allNameMatches.filter(item => 
-                String(item.number) === cleanCollectorNumber
-            );
+            // Multiple collector numbers - show as dropdown
+            const options = uniqueCollectorNumbers.map(baseNumber => {
+                const repCard = getRepresentativeCard(collectorGroups[baseNumber]);
+                const hasInventory = hasInventoryForCard(cardName, repCard.set_name, repCard.collector_number);
+                const count = getInventoryCountForCard(cardName, repCard.set_name, repCard.collector_number);
+                const displayText = hasInventory ? `${baseNumber || 'N/A'} ✓ (${count})` : (baseNumber || 'N/A');
+                
+                return `<option value="${repCard.id}" ${hasInventory ? 'style="background-color: #d4edda; font-weight: bold;"' : ''}>${displayText}</option>`;
+            }).join('');
             
-            if (numberMatches.length > 0) {
-                return numberMatches.reduce((total, item) => total + item.quantity, 0);
-            }
-            
-            // Strategy 4: No match - return 0
-            return 0;
+            return `
+                <small class="text-muted d-block">Collector #</small>
+                <select class="form-select form-select-sm" id="collector-${cleanName}" onchange="updateCollectorNumber('${cardName}', this.value)">
+                    ${options}
+                </select>
+            `;
+        }
+        
+        /**
+         * Generate set dropdown HTML for a card
+         * @param {string} cardName - Card name
+         * @param {Object} setGroups - Object with set names as keys, card arrays as values
+         * @returns {string} - HTML for set dropdown options
+         */
+        function generateSetDropdown(cardName, setGroups) {
+            return Object.entries(setGroups).map(([setName, setCards]) => {
+                const hasInventory = setCards.some(card => hasInventoryForCard(cardName, setName, card.collector_number));
+                const totalCount = setCards.reduce((sum, card) => sum + getInventoryCountForCard(cardName, setName, card.collector_number), 0);
+                const displayText = hasInventory ? `${setName} ✓ (${totalCount})` : setName;
+                
+                return `<option value="${setCards[0].id}" data-set-name="${setName}" ${hasInventory ? 'style="background-color: #d4edda; font-weight: bold;"' : ''}>${displayText}</option>`;
+            }).join('');
         }
 
         function getCurrentlySelectedCard(cardName) {
@@ -812,52 +781,12 @@
                 c.name === cardName && c.set_name === card.set_name
             );
             
-            // Deduplicate foil variants - group by base collector number (remove ★, etc.)
-            const collectorGroups = {};
-            setCards.forEach(c => {
-                const baseNumber = (c.collector_number || '').replace(/[★☆*]/g, '').trim();
-                if (!collectorGroups[baseNumber]) {
-                    collectorGroups[baseNumber] = [];
-                }
-                collectorGroups[baseNumber].push(c);
-            });
-            
-            const uniqueCollectorNumbers = Object.keys(collectorGroups);
-            
-            // Update collector number section
+            // Update collector number section using utility functions
             const collectorContainer = document.getElementById(`collector-container-${cleanName}`);
-            if (uniqueCollectorNumbers.length > 1) {
-                // Multiple collector numbers - show dropdown (deduplicated)
-                collectorContainer.innerHTML = `
-                    <small class="text-muted d-block">Collector #</small>
-                    <select class="form-select form-select-sm" id="collector-${cleanName}" onchange="updateCollectorNumber('${cardName}', this.value)">
-                        ${uniqueCollectorNumbers.map(baseNumber => {
-                            // Use non-foil card as representative (prefer non-foil over foil)
-                            const repCard = collectorGroups[baseNumber].find(c => 
-                                !(c.collector_number || '').includes('★')
-                            ) || collectorGroups[baseNumber][0];
-                            const hasInventory = hasInventoryForCard(cardName, repCard.set_name, repCard.collector_number);
-                            const count = getInventoryCountForCard(cardName, repCard.set_name, repCard.collector_number);
-                            const displayText = hasInventory ? `${baseNumber || 'N/A'} ✓ (${count})` : (baseNumber || 'N/A');
-                            const isSelected = collectorGroups[baseNumber].some(c => c.id === card.id);
-                            return `<option value="${repCard.id}" ${isSelected ? 'selected' : ''} ${hasInventory ? 'style="background-color: #d4edda; font-weight: bold;"' : ''}>${displayText}</option>`;
-                        }).join('')}
-                    </select>
-                `;
-            } else {
-                // Single collector number - show span with inventory indicator
-                const baseNumber = uniqueCollectorNumbers[0];
-                const repCard = collectorGroups[baseNumber].find(c => 
-                    !(c.collector_number || '').includes('★')
-                ) || collectorGroups[baseNumber][0];
-                const hasInventory = hasInventoryForCard(cardName, repCard.set_name, repCard.collector_number);
-                const count = getInventoryCountForCard(cardName, repCard.set_name, repCard.collector_number);
-                const displayText = hasInventory ? `${baseNumber || 'N/A'} ✓ (${count})` : (baseNumber || 'N/A');
-                collectorContainer.innerHTML = `
-                    <small class="text-muted d-block">Collector #</small>
-                    <span id="collector-span-${cleanName}" ${hasInventory ? 'style="color: #155724; font-weight: bold;"' : ''}>${displayText}</span>
-                `;
-            }
+            collectorContainer.innerHTML = `
+                <small class="text-muted d-block">Collector #</small>
+                ${generateCollectorNumberDropdown(cardName, setCards, cleanName)}
+            `;
             
             // Update quantity displays for the new version
             updateQuantityDisplays(cardName);
