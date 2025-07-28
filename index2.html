@@ -344,7 +344,7 @@
          */
         function getBaseCollectorNumber(collectorNumber) {
             if (!collectorNumber) return '';
-            return collectorNumber.replace(/[★☆*F]/g, '').trim();
+            return String(collectorNumber).replace(/[★☆*F]/g, '').trim();
         }
 
         /**
@@ -603,10 +603,10 @@
                 return [];
             }
             
-            // If no set/collector info provided, return all name matches
+            // If no set/collector info provided, return all name matches (legacy compatibility)
             if (!setName || !collectorNumber) {
-                console.log(`✅ Returning ${allNameMatches.length} name-only matches`);
-                return allNameMatches;
+                console.log(`✅ Returning ${allNameMatches.length} name-only matches (no set/collector specified)`);
+                return filterByFinish(allNameMatches, finish);
             }
             
             const cleanCollectorNumber = String(collectorNumber).trim();
@@ -636,19 +636,21 @@
                 }
             }
             
-            // Strategy 3: Name + collector number only (any set)
-            const numberMatches = allNameMatches.filter(item => 
-                String(item.number) === cleanCollectorNumber
-            );
+            // Strategy 3: Name + collector number only (any set) - but clean the collector number first
+            const baseCollectorNumber = getBaseCollectorNumber(collectorNumber);
+            const numberMatches = allNameMatches.filter(item => {
+                const itemBaseNumber = getBaseCollectorNumber(item.number);
+                return itemBaseNumber === baseCollectorNumber;
+            });
             
             if (numberMatches.length > 0) {
-                console.log(`✅ Found ${numberMatches.length} number-only matches`);
+                console.log(`✅ Found ${numberMatches.length} number-only matches (base: ${baseCollectorNumber})`);
                 return filterByFinish(numberMatches, finish);
             }
             
-            // Strategy 4: Name only (fallback)
-            console.log(`⚠️ Falling back to ${allNameMatches.length} name-only matches`);
-            return filterByFinish(allNameMatches, finish);
+            // Strategy 4: No match found - return empty array (don't fall back to name-only)
+            console.log(`❌ No matches found for specific set/collector combination`);
+            return [];
         }
         
         /**
