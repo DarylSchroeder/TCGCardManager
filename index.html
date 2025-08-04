@@ -989,6 +989,7 @@
                     
                     // Apply TCG pricing rules using the existing function
                     const priceItem = {
+                        name: selectedCard.name,
                         marketPrice: marketPrice,
                         lowPrice: lowPrice,
                         lowShipping: lowShipping
@@ -1279,10 +1280,35 @@
             const lowPrice = item.lowPrice || 0;
             const lowShipping = item.lowShipping || 0;
             
+            // Named Card Exclusions: Specific cards that should keep their original price
+            const EXCLUDED_CARDS = [
+                'Godless Shrine',
+                'Cavern of Souls',
+                // Shock Lands (all 10)
+                'Temple Garden',
+                'Steam Vents',
+                'Overgrown Tomb',
+                'Sacred Foundry',
+                'Watery Grave',
+                'Stomping Ground',
+                'Breeding Pool',
+                'Blood Crypt',
+                'Hallowed Fountain'
+            ];
+            
             let calculatedPrice;
             
+            // Named Card Exclusions: Keep original price for cards containing these names (case-insensitive)
+            const isExcludedCard = EXCLUDED_CARDS.some(excludedName => 
+                item.name && item.name.toLowerCase().includes(excludedName.toLowerCase())
+            );
+            
+            if (isExcludedCard) {
+                // Keep the original price (your existing price, not the market price)
+                calculatedPrice = item.originalPrice || marketPrice;
+            }
             // Expensive Cards: TCG Low Price OR Market Price > $30
-            if (lowPrice > 30 || marketPrice > 30) {
+            else if (lowPrice > 30 || marketPrice > 30) {
                 // Keep the original Market Price (do not alter)
                 calculatedPrice = marketPrice;
             } 

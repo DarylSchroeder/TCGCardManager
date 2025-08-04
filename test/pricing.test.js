@@ -2,14 +2,38 @@
 // Tests the TCG Card Manager pricing calculation business rules
 
 // Extract the pricing logic from the main application
-function calculatePrice(tcgMarketPrice, tcgLowPrice, tcgLowWithShipping) {
+function calculatePrice(tcgMarketPrice, tcgLowPrice, tcgLowWithShipping, cardName = '', originalPrice = null) {
     const marketPrice = tcgMarketPrice;
     const lowPrice = tcgLowPrice;
     const lowWithShipping = tcgLowWithShipping;
     
+    // Named Card Exclusions: Specific cards that should keep their original price
+    const EXCLUDED_CARDS = [
+        'Godless Shrine',
+        'Cavern of Souls',
+        // Shock Lands (all 10)
+        'Temple Garden',
+        'Steam Vents',
+        'Overgrown Tomb',
+        'Sacred Foundry',
+        'Watery Grave',
+        'Stomping Ground',
+        'Breeding Pool',
+        'Blood Crypt',
+        'Hallowed Fountain'
+    ];
+    
     let estimatedPrice;
     
-    if (marketPrice <= 0.30) {
+    // Named Card Exclusions: Keep original price for cards containing these names (case-insensitive)
+    const isExcludedCard = EXCLUDED_CARDS.some(excludedName => 
+        cardName && cardName.toLowerCase().includes(excludedName.toLowerCase())
+    );
+    
+    if (isExcludedCard) {
+        // Keep the original price (your existing price, not the market price)
+        estimatedPrice = originalPrice || marketPrice;
+    } else if (marketPrice <= 0.30) {
         // Cheap cards
         estimatedPrice = Math.max(0.50, lowPrice);
     } else if (marketPrice > 30) {
@@ -30,11 +54,17 @@ function formatPrice(price) {
 }
 
 // Test helper to run a pricing scenario
-function testPricingScenario(description, marketPrice, lowPrice, lowWithShipping, expectedPrice, category) {
-    const actualPrice = calculatePrice(marketPrice, lowPrice, lowWithShipping);
+function testPricingScenario(description, marketPrice, lowPrice, lowWithShipping, expectedPrice, category, cardName = '', originalPrice = null) {
+    const actualPrice = calculatePrice(marketPrice, lowPrice, lowWithShipping, cardName, originalPrice);
     const passed = Math.abs(actualPrice - expectedPrice) < 0.001; // Allow for floating point precision
     
     console.log(`${passed ? '✅' : '❌'} ${category}: ${description}`);
+    if (cardName) {
+        console.log(`   Card: "${cardName}"`);
+    }
+    if (originalPrice !== null) {
+        console.log(`   Original Price: ${formatPrice(originalPrice)}`);
+    }
     console.log(`   Market: ${formatPrice(marketPrice)}, Low: ${formatPrice(lowPrice)}, Low+Ship: ${formatPrice(lowWithShipping)}`);
     console.log(`   Expected: ${formatPrice(expectedPrice)}, Actual: ${formatPrice(actualPrice)}`);
     
@@ -315,6 +345,130 @@ function testRealWorldScenarios() {
     console.log('✅ All real-world scenario tests passed!\n');
 }
 
+function testNameBasedExclusions() {
+    console.log('🔍 Testing Name-Based Card Exclusions\n');
+    console.log('Rule: Excluded cards keep their original market price regardless of other rules\n');
+    
+    // Test exact name matches
+    testPricingScenario(
+        'Godless Shrine - exact match (would be standard card otherwise)',
+        15.00, 12.00, 14.00, 15.00,
+        'EXCLUDED', 'Godless Shrine'
+    );
+    
+    testPricingScenario(
+        'Cavern of Souls - exact match (would be standard card otherwise)',
+        25.00, 20.00, 22.00, 25.00,
+        'EXCLUDED', 'Cavern of Souls'
+    );
+    
+    // Test shock lands
+    testPricingScenario(
+        'Steam Vents - shock land exclusion',
+        18.50, 16.00, 17.00, 18.50,
+        'EXCLUDED', 'Steam Vents'
+    );
+    
+    testPricingScenario(
+        'Temple Garden - shock land exclusion',
+        12.75, 11.00, 12.00, 12.75,
+        'EXCLUDED', 'Temple Garden'
+    );
+    
+    // Test case-insensitive matching
+    testPricingScenario(
+        'godless shrine - lowercase should match',
+        20.00, 18.00, 19.00, 20.00,
+        'EXCLUDED', 'godless shrine'
+    );
+    
+    testPricingScenario(
+        'CAVERN OF SOULS - uppercase should match',
+        30.00, 28.00, 29.00, 30.00,
+        'EXCLUDED', 'CAVERN OF SOULS'
+    );
+    
+    // Test substring matching with variants
+    testPricingScenario(
+        'Godless Shrine (Borderless) - variant should match',
+        22.00, 20.00, 21.00, 22.00,
+        'EXCLUDED', 'Godless Shrine (Borderless)'
+    );
+    
+    testPricingScenario(
+        'Steam Vents (Foil) - foil variant should match',
+        35.00, 32.00, 33.00, 35.00,
+        'EXCLUDED', 'Steam Vents (Foil)'
+    );
+    
+    testPricingScenario(
+        'Cavern of Souls (Retro Frame) - retro variant should match',
+        40.00, 38.00, 39.00, 40.00,
+        'EXCLUDED', 'Cavern of Souls (Retro Frame)'
+    );
+    
+    // Test that exclusions override other pricing rules
+    testPricingScenario(
+        'Godless Shrine - would be cheap card but excluded',
+        0.25, 0.20, 0.30, 0.25,
+        'EXCLUDED', 'Godless Shrine'
+    );
+    
+    testPricingScenario(
+        'Steam Vents - would be expensive card but excluded (same result)',
+        45.00, 40.00, 42.00, 45.00,
+        'EXCLUDED', 'Steam Vents'
+    );
+    
+    // Test non-excluded cards still follow normal rules
+    testPricingScenario(
+        'Lightning Bolt - not excluded, should follow cheap card rules',
+        0.25, 0.20, 0.30, 0.50,
+        'NOT EXCLUDED', 'Lightning Bolt'
+    );
+    
+    testPricingScenario(
+        'Tarmogoyf - not excluded, should follow expensive card rules',
+        45.00, 40.00, 42.00, 45.00,
+        'NOT EXCLUDED', 'Tarmogoyf'
+    );
+    
+    testPricingScenario(
+        'Snapcaster Mage - not excluded, should follow standard card rules',
+        15.00, 12.00, 14.00, 14.50, // avg = (14 + 15) / 2 = 14.5
+        'NOT EXCLUDED', 'Snapcaster Mage'
+    );
+    
+    // Test partial matches don't trigger exclusion
+    testPricingScenario(
+        'Shrine of Burning Rage - contains "Shrine" but should not match',
+        2.00, 1.50, 1.75, 1.875, // avg = (1.75 + 2.00) / 2 = 1.875
+        'NOT EXCLUDED', 'Shrine of Burning Rage'
+    );
+    
+    // Test that exclusions preserve original price when available
+    testPricingScenario(
+        'Godless Shrine - should preserve original price ($17.00) over market price ($8.62)',
+        8.62, 7.50, 8.81, 17.00,
+        'EXCLUDED', 'Godless Shrine', 17.00
+    );
+    
+    testPricingScenario(
+        'Steam Vents - should preserve original price ($25.00) over market price ($18.50)',
+        18.50, 16.00, 17.00, 25.00,
+        'EXCLUDED', 'Steam Vents', 25.00
+    );
+    
+    // Test that exclusions fall back to market price when no original price
+    testPricingScenario(
+        'Cavern of Souls - should use market price when no original price available',
+        30.00, 28.00, 29.00, 30.00,
+        'EXCLUDED', 'Cavern of Souls', null
+    );
+    
+    console.log('✅ All name-based exclusion tests passed!\n');
+}
+
 function runPricingTests() {
     console.log('🧪 Running TCG Card Manager Pricing Logic Tests\n');
     console.log('Testing business rules for card pricing calculation\n');
@@ -324,6 +478,7 @@ function runPricingTests() {
         testCheapCards();
         testStandardCards();
         testExpensiveCards();
+        testNameBasedExclusions();
         testEdgeCasesAndErrorConditions();
         testRealWorldScenarios();
         
@@ -332,6 +487,7 @@ function runPricingTests() {
         console.log('✅ Cheap cards (≤ $0.30): Correctly apply max($0.50, low price)');
         console.log('✅ Standard cards ($0.30-$30): Correctly apply max($0.50, max(low, avg))');
         console.log('✅ Expensive cards (> $30): Correctly preserve market price');
+        console.log('✅ Name-based exclusions: Correctly preserve market price for excluded cards');
         console.log('✅ Edge cases: Properly handle boundaries and precision');
         console.log('✅ Real-world scenarios: Realistic pricing patterns work correctly');
         
