@@ -45,9 +45,9 @@ A comprehensive web application for managing your trading card game collection w
 
 ## Pricing Rules
 
-The pricing tool follows TCG marketplace rules:
+The pricing tool follows TCG marketplace rules with competitive weighting:
 - **Minimum Price**: No card priced below $0.50
-- **Standard Cards** ($0.30 - $30): max($0.50, max(TCG Low Price, average of TCG Low With Shipping and TCG Market Price))
+- **Standard Cards** ($0.30 - $30): max($0.50, avg(TCG Low Price, TCG Low Price with Shipping), Market Price)
 - **Cheap Cards** (≤ $0.30): max($0.50, TCG Low Price)
 - **Expensive Cards** (> $30): Keep original price
 

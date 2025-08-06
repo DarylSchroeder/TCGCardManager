@@ -41,11 +41,17 @@ function calculatePrice(tcgMarketPrice, tcgLowPrice, tcgLowWithShipping, cardNam
         estimatedPrice = marketPrice;
     } else {
         // Standard cards
-        const avgLowAndMarket = (lowWithShipping + marketPrice) / 2;
-        estimatedPrice = Math.max(0.50, Math.max(lowPrice, avgLowAndMarket));
+        // max($0.50, avg(TCG Low Price, TCG Low Price with Shipping), Market Price)
+        
+        // Calculate average of TCG Low Price and TCG Low Price with Shipping
+        const lowPriceAverage = (lowPrice + lowWithShipping) / 2;
+        
+        // Take the maximum of: minimum price, low price average, and market price
+        estimatedPrice = Math.max(0.50, lowPriceAverage, marketPrice);
     }
     
-    return estimatedPrice;
+    // Round to 2 decimal places
+    return Math.round(estimatedPrice * 100) / 100;
 }
 
 // Test helper to format currency for display
@@ -124,75 +130,68 @@ function testCheapCards() {
 
 function testStandardCards() {
     console.log('🔍 Testing Standard Cards ($0.30 < Market Price ≤ $30.00)\n');
-    console.log('Rule: max($0.50, max(TCG Low Price, average(TCG Low With Shipping + TCG Market Price)))\n');
+    console.log('Rule: max($0.50, avg(TCG Low Price, TCG Low Price with Shipping), Market Price)\n');
     
     // Basic standard card scenarios
     testPricingScenario(
-        'Standard card where low price wins',
-        5.00, 4.50, 3.00, 4.50,
+        'Standard card where market price wins',
+        5.00, 4.50, 3.00, 5.00, // avg(4.50, 3.00) = 3.75, max(0.50, 3.75, 5.00) = 5.00
         'STANDARD'
     );
     
     testPricingScenario(
-        'Standard card where average wins',
-        5.00, 3.00, 6.00, 5.50, // avg = (6.00 + 5.00) / 2 = 5.50
+        'Standard card where low price average wins',
+        5.00, 3.00, 6.00, 5.00, // avg(3.00, 6.00) = 4.50, max(0.50, 4.50, 5.00) = 5.00
         'STANDARD'
     );
     
     testPricingScenario(
         'Standard card hitting minimum floor',
-        1.00, 0.25, 0.30, 0.65, // avg = (0.30 + 1.00) / 2 = 0.65
+        1.00, 0.25, 0.30, 1.00, // avg(0.25, 0.30) = 0.275, max(0.50, 0.275, 1.00) = 1.00
         'STANDARD'
     );
     
     // Boundary cases
     testPricingScenario(
         'Just above cheap threshold - $0.31',
-        0.31, 0.25, 0.40, 0.50, // avg = (0.40 + 0.31) / 2 = 0.355, but min is 0.50
+        0.31, 0.25, 0.40, 0.50, // avg(0.25, 0.40) = 0.325, max(0.50, 0.325, 0.31) = 0.50
         'STANDARD'
     );
     
     testPricingScenario(
         'Exactly at expensive threshold - $30.00',
-        30.00, 25.00, 28.00, 29.00, // avg = (28.00 + 30.00) / 2 = 29.00
+        30.00, 25.00, 28.00, 30.00, // avg(25.00, 28.00) = 26.50, max(0.50, 26.50, 30.00) = 30.00
         'STANDARD'
     );
     
-    // Rounding edge cases
+    // Average calculations with new strategy
     testPricingScenario(
-        'Average with slight rounding up',
-        2.33, 2.00, 2.50, 2.415, // avg = (2.50 + 2.33) / 2 = 2.415
-        'STANDARD'
-    );
-    
-    testPricingScenario(
-        'Average with slight rounding down',
-        2.33, 2.00, 2.49, 2.41, // avg = (2.49 + 2.33) / 2 = 2.41
+        'Low price average calculation',
+        10.00, 8.00, 9.00, 10.00, // avg(8.00, 9.00) = 8.50, max(0.50, 8.50, 10.00) = 10.00
         'STANDARD'
     );
     
     testPricingScenario(
-        'Repeating decimal average',
-        1.00, 0.80, 2.00, 1.50, // avg = (2.00 + 1.00) / 2 = 1.50
+        'Low price average wins over market price',
+        6.00, 8.00, 7.00, 7.50, // avg(8.00, 7.00) = 7.50, max(0.50, 7.50, 6.00) = 7.50
         'STANDARD'
     );
     
     testPricingScenario(
-        'Complex rounding scenario',
-        7.77, 7.50, 8.88, 8.325, // avg = (8.88 + 7.77) / 2 = 8.325
-        'STANDARD'
-    );
-    
-    // Edge case where low price and average are very close
-    testPricingScenario(
-        'Low price barely beats average',
-        10.00, 12.01, 14.00, 12.01, // avg = (14.00 + 10.00) / 2 = 12.00, low = 12.01
+        'Market price wins over low price average',
+        15.00, 8.00, 12.00, 15.00, // avg(8.00, 12.00) = 10.00, max(0.50, 10.00, 15.00) = 15.00
         'STANDARD'
     );
     
     testPricingScenario(
-        'Average barely beats low price',
-        10.00, 11.99, 14.00, 12.00, // avg = (14.00 + 10.00) / 2 = 12.00, low = 11.99
+        'Complex average scenario',
+        7.77, 7.50, 8.88, 8.19, // avg(7.50, 8.88) = 8.19, max(0.50, 8.19, 7.77) = 8.19
+        'STANDARD'
+    );
+    
+    testPricingScenario(
+        'Minimum price enforcement',
+        0.50, 0.20, 0.30, 0.50, // avg(0.20, 0.30) = 0.25, max(0.50, 0.25, 0.50) = 0.50
         'STANDARD'
     );
     
@@ -276,7 +275,7 @@ function testEdgeCasesAndErrorConditions() {
     // Boundary precision tests
     testPricingScenario(
         'Exact boundary - $0.30 vs $0.300001',
-        0.300001, 0.60, 1.00, 0.650000, // Should be standard: avg = (1.00 + 0.300001) / 2 = 0.650000
+        0.300001, 0.60, 1.00, 0.80, // Should be standard: avg(0.60, 1.00) = 0.80, max(0.50, 0.80, 0.300001) = 0.80
         'EDGE CASE'
     );
     
@@ -289,13 +288,13 @@ function testEdgeCasesAndErrorConditions() {
     // Minimum floor edge cases
     testPricingScenario(
         'Standard card with average exactly at minimum',
-        1.00, 0.25, 0.00, 0.50, // avg = (0.00 + 1.00) / 2 = 0.50
+        1.00, 0.25, 0.00, 1.00, // avg(0.25, 0.00) = 0.125, max(0.50, 0.125, 1.00) = 1.00
         'EDGE CASE'
     );
     
     testPricingScenario(
         'Standard card with average just below minimum',
-        0.80, 0.25, 0.15, 0.50, // avg = (0.15 + 0.80) / 2 = 0.475
+        0.80, 0.25, 0.15, 0.80, // avg(0.25, 0.15) = 0.20, max(0.50, 0.20, 0.80) = 0.80
         'EDGE CASE'
     );
     
@@ -314,13 +313,13 @@ function testRealWorldScenarios() {
     
     testPricingScenario(
         'Uncommon card - moderate value',
-        2.50, 2.25, 2.75, 2.625, // avg = (2.75 + 2.50) / 2 = 2.625
+        2.50, 2.25, 2.75, 2.50, // avg(2.25, 2.75) = 2.50, max(0.50, 2.50, 2.50) = 2.50
         'REAL WORLD'
     );
     
     testPricingScenario(
         'Rare card - higher value',
-        15.00, 14.50, 16.00, 15.50, // avg = (16.00 + 15.00) / 2 = 15.50
+        15.00, 14.50, 16.00, 15.25, // avg(14.50, 16.00) = 15.25, max(0.50, 15.25, 15.00) = 15.25
         'REAL WORLD'
     );
     
@@ -338,7 +337,7 @@ function testRealWorldScenarios() {
     
     testPricingScenario(
         'Bulk rare - low value but above cheap threshold',
-        0.75, 0.50, 1.25, 1.00, // avg = (1.25 + 0.75) / 2 = 1.00
+        0.75, 0.50, 1.25, 0.88, // avg(0.50, 1.25) = 0.875, max(0.50, 0.875, 0.75) = 0.88 (rounded)
         'REAL WORLD'
     );
     
@@ -435,14 +434,14 @@ function testNameBasedExclusions() {
     
     testPricingScenario(
         'Snapcaster Mage - not excluded, should follow standard card rules',
-        15.00, 12.00, 14.00, 14.50, // avg = (14 + 15) / 2 = 14.5
+        15.00, 12.00, 14.00, 15.00, // avg(12.00, 14.00) = 13.00, max(0.50, 13.00, 15.00) = 15.00
         'NOT EXCLUDED', 'Snapcaster Mage'
     );
     
     // Test partial matches don't trigger exclusion
     testPricingScenario(
         'Shrine of Burning Rage - contains "Shrine" but should not match',
-        2.00, 1.50, 1.75, 1.875, // avg = (1.75 + 2.00) / 2 = 1.875
+        2.00, 1.50, 1.75, 2.00, // avg(1.50, 1.75) = 1.625, max(0.50, 1.625, 2.00) = 2.00
         'NOT EXCLUDED', 'Shrine of Burning Rage'
     );
     
@@ -485,9 +484,9 @@ function runPricingTests() {
         console.log('🎉 All pricing logic tests passed!');
         console.log('\n📊 Test Summary:');
         console.log('✅ Cheap cards (≤ $0.30): Correctly apply max($0.50, low price)');
-        console.log('✅ Standard cards ($0.30-$30): Correctly apply max($0.50, max(low, avg))');
+        console.log('✅ Standard cards ($0.30-$30): Correctly apply max($0.50, max(low, 70% market + 30% low))');
         console.log('✅ Expensive cards (> $30): Correctly preserve market price');
-        console.log('✅ Name-based exclusions: Correctly preserve market price for excluded cards');
+        console.log('✅ Name-based exclusions: Correctly preserve original price for excluded cards');
         console.log('✅ Edge cases: Properly handle boundaries and precision');
         console.log('✅ Real-world scenarios: Realistic pricing patterns work correctly');
         

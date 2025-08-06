@@ -1307,31 +1307,20 @@
                 // Keep the original price (your existing price, not the market price)
                 calculatedPrice = item.originalPrice || marketPrice;
             }
-            // Expensive Cards: TCG Low Price OR Market Price > $30
-            else if (lowPrice > 30 || marketPrice > 30) {
+            // Expensive Cards: Market Price > $30
+            else if (marketPrice > 30) {
                 // Keep the original Market Price (do not alter)
                 calculatedPrice = marketPrice;
             } 
-            // Cheap Cards: TCG Low Price ≤ $0.30
-            else if (lowPrice <= 0.30) {
-                // max($0.50, TCG Low Price)
-                calculatedPrice = Math.max(MINIMUM_PRICE, lowPrice);
-            } 
-            // Standard Cards: $0.30 < TCG Low Price ≤ $30
+            // All other cards: Use the standard formula
             else {
-                // max($0.50, max(TCG Low Price, average of (TCG Low Price With Shipping and TCG Market Price)))
+                // max($0.50, avg(TCG Low Price, TCG Low Price with Shipping), Market Price)
                 
-                // Handle missing Market Price: if Market Price is 0/missing, use Low+Shipping as the average
-                let average;
-                if (marketPrice > 0) {
-                    // Both values available: normal average
-                    average = (lowShipping + marketPrice) / 2;
-                } else {
-                    // Market Price missing: use Low+Shipping as the comparison value
-                    average = lowShipping;
-                }
+                // Calculate average of TCG Low Price and TCG Low Price with Shipping
+                const lowPriceAverage = (lowPrice + lowShipping) / 2;
                 
-                calculatedPrice = Math.max(MINIMUM_PRICE, Math.max(lowPrice, average));
+                // Take the maximum of: minimum price, low price average, and market price
+                calculatedPrice = Math.max(MINIMUM_PRICE, lowPriceAverage, marketPrice);
             }
             
             // Round to 2 decimal places
@@ -1596,13 +1585,13 @@
                 'Number': item.number || '',
                 'Rarity': item.rarity || '',
                 'Condition': item.condition,
-                'TCG Market Price': roundPrice(item.marketPrice || 0),
+                'TCG Market Price': roundPrice(item.marketPrice || 0).toFixed(2),
                 'TCG Direct Low': item.tcgDirectLow || '',
-                'TCG Low Price With Shipping': roundPrice(item.lowShipping || 0),
-                'TCG Low Price': roundPrice(item.lowPrice || 0),
+                'TCG Low Price With Shipping': roundPrice(item.lowShipping || 0).toFixed(2),
+                'TCG Low Price': roundPrice(item.lowPrice || 0).toFixed(2),
                 'Total Quantity': item.quantity,
                 'Add to Quantity': item.addToQuantity || 0,
-                'TCG Marketplace Price': roundPrice(item.calculatedPrice || item.originalPrice || item.price),
+                'TCG Marketplace Price': roundPrice(item.calculatedPrice || item.originalPrice || item.price).toFixed(2),
                 'Photo URL': item.photoUrl || ''
             }));
 
