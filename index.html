@@ -1309,8 +1309,8 @@
             }
             // Expensive Cards: Market Price > $30
             else if (marketPrice > 30) {
-                // Keep the original Market Price (do not alter)
-                calculatedPrice = marketPrice;
+                // Keep the original inventory price (do not alter expensive cards)
+                calculatedPrice = item.originalPrice || marketPrice;
             } 
             // All other cards: Use the standard formula
             else {
