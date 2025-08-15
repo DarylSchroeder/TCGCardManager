@@ -37,8 +37,8 @@ function calculatePrice(tcgMarketPrice, tcgLowPrice, tcgLowWithShipping, cardNam
         // Cheap cards
         estimatedPrice = Math.max(0.50, lowPrice);
     } else if (marketPrice > 30) {
-        // Expensive cards: Keep original inventory price (do not alter expensive cards)
-        estimatedPrice = originalPrice || marketPrice;
+        // Expensive cards: Use the greater of market price or original inventory price
+        estimatedPrice = originalPrice ? Math.max(marketPrice, originalPrice) : marketPrice;
     } else {
         // Standard cards
         // max($0.50, avg(TCG Low Price, TCG Low Price with Shipping), Market Price)
@@ -200,7 +200,7 @@ function testStandardCards() {
 
 function testExpensiveCards() {
     console.log('🔍 Testing Expensive Cards (Market Price > $30.00)\n');
-    console.log('Rule: Keep original inventory price (do not alter expensive cards)\n');
+    console.log('Rule: Use the greater of market price or original inventory price\n');
     
     // Basic expensive card scenarios
     testPricingScenario(
@@ -247,17 +247,23 @@ function testExpensiveCards() {
         'EXPENSIVE'
     );
     
-    // Test expensive cards with original prices (the key fix)
+    // Test expensive cards with original prices (the key logic)
     testPricingScenario(
-        'Expensive card with original price - should preserve original',
+        'Expensive card with higher original price - should use original',
         50.00, 45.00, 47.00, 75.00,
         'EXPENSIVE', '', 75.00
     );
     
     testPricingScenario(
-        'Expensive card with lower original price - should preserve original',
-        100.00, 95.00, 97.00, 80.00,
+        'Expensive card with lower original price - should use market price',
+        100.00, 95.00, 97.00, 100.00,
         'EXPENSIVE', '', 80.00
+    );
+    
+    testPricingScenario(
+        'Expensive card with equal original price - should use either (market)',
+        60.00, 55.00, 57.00, 60.00,
+        'EXPENSIVE', '', 60.00
     );
     
     testPricingScenario(

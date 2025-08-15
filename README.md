@@ -49,7 +49,7 @@ The pricing tool follows TCG marketplace rules with competitive weighting:
 - **Minimum Price**: No card priced below $0.50
 - **Standard Cards** ($0.30 - $30): max($0.50, avg(TCG Low Price, TCG Low Price with Shipping), Market Price)
 - **Cheap Cards** (≤ $0.30): max($0.50, TCG Low Price)
-- **Expensive Cards** (> $30): Keep original price
+- **Expensive Cards** (> $30): Use the greater of market price or original price
 
 ## UI Layout
 
