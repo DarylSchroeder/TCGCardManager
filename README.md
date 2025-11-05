@@ -30,6 +30,11 @@ A comprehensive web application for managing your trading card game collection w
 3. Run the server: `./run.sh`
 4. Open your browser to: `http://localhost:3000`
 
+### Configuration
+- **Pricing Strategy**: Configure in `config.json` under `pricing.strategy`
+- **Available Strategies**: `PRICING_STRATEGY_HIGHEST_PROFIT` (default) or `PRICING_STRATEGY_HIGHEST_VOLUME`
+- **Strategy Selection**: Use the dropdown in the pricing section of the UI
+
 ## User Workflow
 
 ### Basic Card Management
@@ -45,11 +50,27 @@ A comprehensive web application for managing your trading card game collection w
 
 ## Pricing Rules
 
-The pricing tool follows TCG marketplace rules with competitive weighting:
+The pricing tool follows TCG marketplace rules with competitive weighting and supports two pricing strategies:
+
+### Pricing Strategies
+- **PRICING_STRATEGY_HIGHEST_PROFIT** (Default): Maximizes profit margins by taking the highest of market price and low price average
+- **PRICING_STRATEGY_HIGHEST_VOLUME**: Optimizes for sales volume by averaging all three price points
+
+Strategy can be configured in `config.json` under `pricing.strategy`.
+
+### Named Card Exclusions
+Specific high-value cards preserve their original inventory price regardless of market conditions:
+- **Godless Shrine** (all variants)
+- **Cavern of Souls** (all variants)
+- **All Shock Lands**: Temple Garden, Steam Vents, Overgrown Tomb, Sacred Foundry, Watery Grave, Stomping Ground, Breeding Pool, Blood Crypt, Hallowed Fountain
+
+### Standard Pricing Rules
 - **Minimum Price**: No card priced below $0.50
-- **Standard Cards** ($0.30 - $30): max($0.50, avg(TCG Low Price, TCG Low Price with Shipping), Market Price)
 - **Cheap Cards** (≤ $0.30): max($0.50, TCG Low Price)
-- **Expensive Cards** (> $30): Use the greater of market price or original price
+- **Standard Cards** ($0.30 - $30): 
+  - **HIGHEST_PROFIT**: max($0.50, avg(TCG Low Price, TCG Low Price with Shipping), Market Price)
+  - **HIGHEST_VOLUME**: max($0.50, avg(TCG Low Price, TCG Low Price with Shipping, Market Price))
+- **Expensive Cards** (> $30): max(Market Price, Original Inventory Price)
 
 ## UI Layout
 
@@ -88,7 +109,7 @@ node test/pricing-integration.test.js    # Full pricing workflow
 
 ### Test Coverage
 - **CSV Tests**: Parsing, escaping, export, and round-trip functionality
-- **Pricing Tests**: Validates all TCG pricing rule calculations and edge cases
+- **Pricing Tests**: Validates all TCG pricing rule calculations and edge cases, including both pricing strategies
 - **Integration Tests**: Verifies CSV data handling and real file operations
 - **Pricing Integration**: Full workflow testing (import → calculate → export)
 

@@ -1,8 +1,26 @@
 // Pricing Logic Functional Tests
 // Tests the TCG Card Manager pricing calculation business rules
 
+// Load configuration
+const fs = require('fs');
+const path = require('path');
+
+let config;
+try {
+    const configPath = path.join(__dirname, '..', 'config.json');
+    config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+} catch (error) {
+    // Fallback to default strategy if config file doesn't exist
+    config = {
+        pricing: {
+            strategy: "PRICING_STRATEGY_HIGHEST_PROFIT"
+        }
+    };
+}
+
 // Extract the pricing logic from the main application
-function calculatePrice(tcgMarketPrice, tcgLowPrice, tcgLowWithShipping, cardName = '', originalPrice = null) {
+function calculatePrice(tcgMarketPrice, tcgLowPrice, tcgLowWithShipping, cardName = '', originalPrice = null, strategy = null) {
+    const pricingStrategy = strategy || config.pricing.strategy;
     const marketPrice = tcgMarketPrice;
     const lowPrice = tcgLowPrice;
     const lowWithShipping = tcgLowWithShipping;
@@ -39,15 +57,35 @@ function calculatePrice(tcgMarketPrice, tcgLowPrice, tcgLowWithShipping, cardNam
     } else if (marketPrice > 30) {
         // Expensive cards: Use the greater of market price or original inventory price
         estimatedPrice = originalPrice ? Math.max(marketPrice, originalPrice) : marketPrice;
+    } else if (marketPrice > 30) {
+        // Expensive cards - strategy-dependent calculation
+        if (pricingStrategy === "PRICING_STRATEGY_PENNY_UNDER_AVERAGE") {
+            const validPrices = [marketPrice, lowPrice].filter(p => p > 0);
+            const average = validPrices.length > 0 ? validPrices.reduce((a, b) => a + b) / validPrices.length : marketPrice;
+            const pennyUnder = average - 0.01;
+            estimatedPrice = originalPrice ? Math.max(0.50, pennyUnder, originalPrice) : Math.max(0.50, pennyUnder);
+        } else {
+            // Use the greater of market price or original inventory price
+            estimatedPrice = originalPrice ? Math.max(marketPrice, originalPrice) : marketPrice;
+        }
     } else {
-        // Standard cards
-        // max($0.50, avg(TCG Low Price, TCG Low Price with Shipping), Market Price)
-        
-        // Calculate average of TCG Low Price and TCG Low Price with Shipping
-        const lowPriceAverage = (lowPrice + lowWithShipping) / 2;
-        
-        // Take the maximum of: minimum price, low price average, and market price
-        estimatedPrice = Math.max(0.50, lowPriceAverage, marketPrice);
+        // Standard cards - strategy-dependent calculation
+        if (pricingStrategy === "PRICING_STRATEGY_HIGHEST_VOLUME") {
+            // HIGHEST_VOLUME: max($0.50, avg(valid prices))
+            const validPrices = [lowPrice, lowWithShipping, marketPrice].filter(p => p > 0);
+            const average = validPrices.length > 0 ? validPrices.reduce((a, b) => a + b) / validPrices.length : marketPrice;
+            estimatedPrice = Math.max(0.50, average);
+        } else if (pricingStrategy === "PRICING_STRATEGY_PENNY_UNDER_AVERAGE") {
+            // PENNY_UNDER_AVERAGE: max($0.50, avg(valid prices) - $0.01)
+            const validPrices = [marketPrice, lowPrice].filter(p => p > 0);
+            const average = validPrices.length > 0 ? validPrices.reduce((a, b) => a + b) / validPrices.length : marketPrice;
+            estimatedPrice = Math.max(0.50, average - 0.01);
+        } else {
+            // HIGHEST_PROFIT (default): max($0.50, avg(valid low prices), Market Price)
+            const validLowPrices = [lowPrice, lowWithShipping].filter(p => p > 0);
+            const lowPriceAverage = validLowPrices.length > 0 ? validLowPrices.reduce((a, b) => a + b) / validLowPrices.length : 0;
+            estimatedPrice = Math.max(0.50, lowPriceAverage, marketPrice);
+        }
     }
     
     // Round to 2 decimal places
@@ -60,11 +98,12 @@ function formatPrice(price) {
 }
 
 // Test helper to run a pricing scenario
-function testPricingScenario(description, marketPrice, lowPrice, lowWithShipping, expectedPrice, category, cardName = '', originalPrice = null) {
-    const actualPrice = calculatePrice(marketPrice, lowPrice, lowWithShipping, cardName, originalPrice);
+function testPricingScenario(description, marketPrice, lowPrice, lowWithShipping, expectedPrice, category, cardName = '', originalPrice = null, strategy = null) {
+    const actualPrice = calculatePrice(marketPrice, lowPrice, lowWithShipping, cardName, originalPrice, strategy);
     const passed = Math.abs(actualPrice - expectedPrice) < 0.001; // Allow for floating point precision
     
-    console.log(`${passed ? '✅' : '❌'} ${category}: ${description}`);
+    const strategyLabel = strategy ? ` [${strategy}]` : '';
+    console.log(`${passed ? '✅' : '❌'} ${category}${strategyLabel}: ${description}`);
     if (cardName) {
         console.log(`   Card: "${cardName}"`);
     }
@@ -130,69 +169,72 @@ function testCheapCards() {
 
 function testStandardCards() {
     console.log('🔍 Testing Standard Cards ($0.30 < Market Price ≤ $30.00)\n');
-    console.log('Rule: max($0.50, avg(TCG Low Price, TCG Low Price with Shipping), Market Price)\n');
     
-    // Basic standard card scenarios
+    // Test HIGHEST_PROFIT strategy
+    console.log('📈 HIGHEST_PROFIT Strategy: max($0.50, avg(TCG Low Price, TCG Low Price with Shipping), Market Price)\n');
+    
     testPricingScenario(
         'Standard card where market price wins',
         5.00, 4.50, 3.00, 5.00, // avg(4.50, 3.00) = 3.75, max(0.50, 3.75, 5.00) = 5.00
-        'STANDARD'
+        'STANDARD', '', null, 'PRICING_STRATEGY_HIGHEST_PROFIT'
     );
     
     testPricingScenario(
         'Standard card where low price average wins',
         5.00, 3.00, 6.00, 5.00, // avg(3.00, 6.00) = 4.50, max(0.50, 4.50, 5.00) = 5.00
-        'STANDARD'
-    );
-    
-    testPricingScenario(
-        'Standard card hitting minimum floor',
-        1.00, 0.25, 0.30, 1.00, // avg(0.25, 0.30) = 0.275, max(0.50, 0.275, 1.00) = 1.00
-        'STANDARD'
-    );
-    
-    // Boundary cases
-    testPricingScenario(
-        'Just above cheap threshold - $0.31',
-        0.31, 0.25, 0.40, 0.50, // avg(0.25, 0.40) = 0.325, max(0.50, 0.325, 0.31) = 0.50
-        'STANDARD'
-    );
-    
-    testPricingScenario(
-        'Exactly at expensive threshold - $30.00',
-        30.00, 25.00, 28.00, 30.00, // avg(25.00, 28.00) = 26.50, max(0.50, 26.50, 30.00) = 30.00
-        'STANDARD'
-    );
-    
-    // Average calculations with new strategy
-    testPricingScenario(
-        'Low price average calculation',
-        10.00, 8.00, 9.00, 10.00, // avg(8.00, 9.00) = 8.50, max(0.50, 8.50, 10.00) = 10.00
-        'STANDARD'
+        'STANDARD', '', null, 'PRICING_STRATEGY_HIGHEST_PROFIT'
     );
     
     testPricingScenario(
         'Low price average wins over market price',
         6.00, 8.00, 7.00, 7.50, // avg(8.00, 7.00) = 7.50, max(0.50, 7.50, 6.00) = 7.50
-        'STANDARD'
+        'STANDARD', '', null, 'PRICING_STRATEGY_HIGHEST_PROFIT'
+    );
+    
+    // Test HIGHEST_VOLUME strategy
+    console.log('📊 HIGHEST_VOLUME Strategy: max($0.50, avg(TCG Low Price, TCG Low Price with Shipping, Market Price))\n');
+    
+    testPricingScenario(
+        'Standard card with 3-way average',
+        5.00, 4.50, 3.00, 4.17, // avg(4.50, 3.00, 5.00) = 4.167, max(0.50, 4.167) = 4.17
+        'STANDARD', '', null, 'PRICING_STRATEGY_HIGHEST_VOLUME'
     );
     
     testPricingScenario(
-        'Market price wins over low price average',
-        15.00, 8.00, 12.00, 15.00, // avg(8.00, 12.00) = 10.00, max(0.50, 10.00, 15.00) = 15.00
-        'STANDARD'
+        'Standard card with 3-way average (different values)',
+        6.00, 8.00, 7.00, 7.00, // avg(8.00, 7.00, 6.00) = 7.00, max(0.50, 7.00) = 7.00
+        'STANDARD', '', null, 'PRICING_STRATEGY_HIGHEST_VOLUME'
     );
     
     testPricingScenario(
-        'Complex average scenario',
-        7.77, 7.50, 8.88, 8.19, // avg(7.50, 8.88) = 8.19, max(0.50, 8.19, 7.77) = 8.19
-        'STANDARD'
+        'Standard card hitting minimum floor with volume strategy',
+        1.00, 0.25, 0.30, 0.52, // avg(0.25, 0.30, 1.00) = 0.517, max(0.50, 0.517) = 0.52
+        'STANDARD', '', null, 'PRICING_STRATEGY_HIGHEST_VOLUME'
+    );
+    
+    // Test boundary cases for both strategies
+    testPricingScenario(
+        'Just above cheap threshold - $0.31 (HIGHEST_PROFIT)',
+        0.31, 0.25, 0.40, 0.50, // avg(0.25, 0.40) = 0.325, max(0.50, 0.325, 0.31) = 0.50
+        'STANDARD', '', null, 'PRICING_STRATEGY_HIGHEST_PROFIT'
     );
     
     testPricingScenario(
-        'Minimum price enforcement',
-        0.50, 0.20, 0.30, 0.50, // avg(0.20, 0.30) = 0.25, max(0.50, 0.25, 0.50) = 0.50
-        'STANDARD'
+        'Just above cheap threshold - $0.31 (HIGHEST_VOLUME)',
+        0.31, 0.25, 0.40, 0.50, // avg(0.25, 0.40, 0.31) = 0.32, max(0.50, 0.32) = 0.50
+        'STANDARD', '', null, 'PRICING_STRATEGY_HIGHEST_VOLUME'
+    );
+    
+    testPricingScenario(
+        'Exactly at expensive threshold - $30.00 (HIGHEST_PROFIT)',
+        30.00, 25.00, 28.00, 30.00, // avg(25.00, 28.00) = 26.50, max(0.50, 26.50, 30.00) = 30.00
+        'STANDARD', '', null, 'PRICING_STRATEGY_HIGHEST_PROFIT'
+    );
+    
+    testPricingScenario(
+        'Exactly at expensive threshold - $30.00 (HIGHEST_VOLUME)',
+        30.00, 25.00, 28.00, 27.67, // avg(25.00, 28.00, 30.00) = 27.667, max(0.50, 27.667) = 27.67
+        'STANDARD', '', null, 'PRICING_STRATEGY_HIGHEST_VOLUME'
     );
     
     console.log('✅ All standard card tests passed!\n');
@@ -300,7 +342,7 @@ function testEdgeCasesAndErrorConditions() {
     // Boundary precision tests
     testPricingScenario(
         'Exact boundary - $0.30 vs $0.300001',
-        0.300001, 0.60, 1.00, 0.80, // Should be standard: avg(0.60, 1.00) = 0.80, max(0.50, 0.80, 0.300001) = 0.80
+        0.300001, 0.60, 1.00, 0.63, // Should be standard: avg(0.60, 1.00, 0.300001) = 0.63 (HIGHEST_VOLUME)
         'EDGE CASE'
     );
     
@@ -313,17 +355,86 @@ function testEdgeCasesAndErrorConditions() {
     // Minimum floor edge cases
     testPricingScenario(
         'Standard card with average exactly at minimum',
-        1.00, 0.25, 0.00, 1.00, // avg(0.25, 0.00) = 0.125, max(0.50, 0.125, 1.00) = 1.00
+        1.00, 0.25, 0.00, 0.63, // avg(0.25, 1.00) = 0.625 ≈ 0.63 (HIGHEST_VOLUME, filtering zero)
         'EDGE CASE'
     );
     
     testPricingScenario(
         'Standard card with average just below minimum',
-        0.80, 0.25, 0.15, 0.80, // avg(0.25, 0.15) = 0.20, max(0.50, 0.20, 0.80) = 0.80
+        0.80, 0.25, 0.15, 0.50, // avg(0.25, 0.15, 0.80) = 0.40, max(0.50, 0.40) = 0.50 (HIGHEST_VOLUME)
         'EDGE CASE'
     );
     
     console.log('✅ All edge case tests passed!\n');
+}
+
+function testPricingStrategies() {
+    console.log('🔍 Testing All Pricing Strategies\n');
+    
+    // Test PENNY_UNDER_AVERAGE strategy
+    testPricingScenario(
+        'Standard card - Penny Under Average',
+        5.00, 4.50, 4.75, 4.74, // avg(5.00, 4.50) - 0.01 = 4.75 - 0.01 = 4.74
+        'PENNY_UNDER', '', null, 'PRICING_STRATEGY_PENNY_UNDER_AVERAGE'
+    );
+    
+    testPricingScenario(
+        'Expensive card - Penny Under Average with original protection',
+        50.00, 45.00, 47.00, 55.00, // avg(50.00, 45.00) - 0.01 = 47.49, but original 55.00 is higher
+        'PENNY_UNDER', '', 55.00, 'PRICING_STRATEGY_PENNY_UNDER_AVERAGE'
+    );
+    
+    // Test missing data scenarios for all strategies
+    testPricingScenario(
+        'Missing TCG Low - Penny Under Average',
+        5.00, 0, 4.75, 4.99, // avg(5.00) - 0.01 = 4.99
+        'MISSING_DATA', '', null, 'PRICING_STRATEGY_PENNY_UNDER_AVERAGE'
+    );
+    
+    testPricingScenario(
+        'Missing TCG Low - Highest Volume',
+        5.00, 0, 4.75, 4.88, // avg(4.75, 5.00) = 4.875
+        'MISSING_DATA', '', null, 'PRICING_STRATEGY_HIGHEST_VOLUME'
+    );
+    
+    testPricingScenario(
+        'Missing TCG Low - Highest Profit',
+        5.00, 0, 4.75, 5.00, // max(0.50, avg(4.75), 5.00) = 5.00
+        'MISSING_DATA', '', null, 'PRICING_STRATEGY_HIGHEST_PROFIT'
+    );
+    
+    // Strategy comparison on same data
+    const testCases = [
+        {
+            desc: 'Market price higher than low average',
+            market: 10.00, low: 8.00, lowShip: 7.00,
+            profitExpected: 10.00, // max(0.50, avg(8,7)=7.5, 10) = 10
+            volumeExpected: 8.33,  // max(0.50, avg(8,7,10)=8.33) = 8.33
+            pennyExpected: 8.99    // avg(10,8) - 0.01 = 9 - 0.01 = 8.99
+        }
+    ];
+    
+    testCases.forEach(testCase => {
+        testPricingScenario(
+            `${testCase.desc} - HIGHEST_PROFIT`,
+            testCase.market, testCase.low, testCase.lowShip, testCase.profitExpected,
+            'STRATEGY_COMPARISON', '', null, 'PRICING_STRATEGY_HIGHEST_PROFIT'
+        );
+        
+        testPricingScenario(
+            `${testCase.desc} - HIGHEST_VOLUME`,
+            testCase.market, testCase.low, testCase.lowShip, testCase.volumeExpected,
+            'STRATEGY_COMPARISON', '', null, 'PRICING_STRATEGY_HIGHEST_VOLUME'
+        );
+        
+        testPricingScenario(
+            `${testCase.desc} - PENNY_UNDER_AVERAGE`,
+            testCase.market, testCase.low, testCase.lowShip, testCase.pennyExpected,
+            'STRATEGY_COMPARISON', '', null, 'PRICING_STRATEGY_PENNY_UNDER_AVERAGE'
+        );
+    });
+    
+    console.log('✅ All pricing strategy tests passed!\n');
 }
 
 function testRealWorldScenarios() {
@@ -344,7 +455,7 @@ function testRealWorldScenarios() {
     
     testPricingScenario(
         'Rare card - higher value',
-        15.00, 14.50, 16.00, 15.25, // avg(14.50, 16.00) = 15.25, max(0.50, 15.25, 15.00) = 15.25
+        15.00, 14.50, 16.00, 15.17, // avg(14.50, 16.00, 15.00) = 15.17 (HIGHEST_VOLUME)
         'REAL WORLD'
     );
     
@@ -362,7 +473,7 @@ function testRealWorldScenarios() {
     
     testPricingScenario(
         'Bulk rare - low value but above cheap threshold',
-        0.75, 0.50, 1.25, 0.88, // avg(0.50, 1.25) = 0.875, max(0.50, 0.875, 0.75) = 0.88 (rounded)
+        0.75, 0.50, 1.25, 0.83, // avg(0.50, 1.25, 0.75) = 0.833 ≈ 0.83 (HIGHEST_VOLUME)
         'REAL WORLD'
     );
     
@@ -459,14 +570,14 @@ function testNameBasedExclusions() {
     
     testPricingScenario(
         'Snapcaster Mage - not excluded, should follow standard card rules',
-        15.00, 12.00, 14.00, 15.00, // avg(12.00, 14.00) = 13.00, max(0.50, 13.00, 15.00) = 15.00
+        15.00, 12.00, 14.00, 13.67, // avg(12.00, 14.00, 15.00) = 13.67 (HIGHEST_VOLUME default)
         'NOT EXCLUDED', 'Snapcaster Mage'
     );
     
     // Test partial matches don't trigger exclusion
     testPricingScenario(
         'Shrine of Burning Rage - contains "Shrine" but should not match',
-        2.00, 1.50, 1.75, 2.00, // avg(1.50, 1.75) = 1.625, max(0.50, 1.625, 2.00) = 2.00
+        2.00, 1.50, 1.75, 1.75, // avg(1.50, 1.75, 2.00) = 1.75 (HIGHEST_VOLUME default)
         'NOT EXCLUDED', 'Shrine of Burning Rage'
     );
     
@@ -503,6 +614,7 @@ function runPricingTests() {
         testStandardCards();
         testExpensiveCards();
         testNameBasedExclusions();
+        testPricingStrategies();
         testEdgeCasesAndErrorConditions();
         testRealWorldScenarios();
         

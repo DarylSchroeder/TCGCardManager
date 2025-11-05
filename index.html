@@ -204,6 +204,14 @@
                     <button class="btn btn-outline-danger btn-sm" onclick="clearInventory()">
                         <i class="fas fa-trash me-1"></i>Clear Inventory
                     </button>
+                    <div class="form-group ms-3 d-inline-block">
+                        <label for="pricingStrategySelect" class="form-label me-2">Pricing Strategy:</label>
+                        <select class="form-select d-inline-block" id="pricingStrategySelect" style="width: auto;">
+                            <option value="PRICING_STRATEGY_HIGHEST_PROFIT">Highest Profit</option>
+                            <option value="PRICING_STRATEGY_HIGHEST_VOLUME">Highest Volume</option>
+                            <option value="PRICING_STRATEGY_PENNY_UNDER_AVERAGE">Penny Under Average</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
@@ -339,7 +347,28 @@
         let currentSortDirection = 'asc';
 
         // Initialize app
-        document.addEventListener('DOMContentLoaded', function() {
+        // Load configuration from server
+        async function loadConfig() {
+            try {
+                const response = await fetch('/config.json');
+                if (response.ok) {
+                    const config = await response.json();
+                    // Set default pricing strategy
+                    const strategySelect = document.getElementById('pricingStrategySelect');
+                    if (strategySelect && config.pricing && config.pricing.strategy) {
+                        strategySelect.value = config.pricing.strategy;
+                    }
+                    return config;
+                }
+            } catch (error) {
+                console.log('Config file not found, using defaults');
+            }
+            return null;
+        }
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            await loadConfig(); // Load config first
+            
             // Set local timestamp for debugging
             const now = new Date();
             const timestamp = now.toLocaleString('en-US', {
@@ -1280,6 +1309,10 @@
             const lowPrice = item.lowPrice || 0;
             const lowShipping = item.lowShipping || 0;
             
+            // Get selected pricing strategy
+            const strategySelect = document.getElementById('pricingStrategySelect');
+            const pricingStrategy = strategySelect ? strategySelect.value : 'PRICING_STRATEGY_HIGHEST_PROFIT';
+            
             // Named Card Exclusions: Specific cards that should keep their original price
             const EXCLUDED_CARDS = [
                 'Godless Shrine',
@@ -1295,7 +1328,7 @@
                 'Blood Crypt',
                 'Hallowed Fountain'
             ];
-            
+
             let calculatedPrice;
             
             // Named Card Exclusions: Keep original price for cards containing these names (case-insensitive)
@@ -1307,20 +1340,44 @@
                 // Keep the original price (your existing price, not the market price)
                 calculatedPrice = item.originalPrice || marketPrice;
             }
+            // Cheap cards: Market Price <= $0.30
+            else if (marketPrice <= 0.30) {
+                // max($0.50, TCG Low Price)
+                calculatedPrice = Math.max(MINIMUM_PRICE, lowPrice);
+            }
             // Expensive Cards: Market Price > $30
             else if (marketPrice > 30) {
-                // Use the greater of market price or original inventory price
-                calculatedPrice = item.originalPrice ? Math.max(marketPrice, item.originalPrice) : marketPrice;
+                if (pricingStrategy === 'PRICING_STRATEGY_PENNY_UNDER_AVERAGE') {
+                    // PENNY_UNDER_AVERAGE: max($0.50, avg(valid prices) - $0.01, Original Price)
+                    const validPrices = [marketPrice, lowPrice].filter(p => p > 0);
+                    const average = validPrices.length > 0 ? validPrices.reduce((a, b) => a + b) / validPrices.length : marketPrice;
+                    const pennyUnder = average - 0.01;
+                    calculatedPrice = item.originalPrice ? 
+                        Math.max(MINIMUM_PRICE, pennyUnder, item.originalPrice) : 
+                        Math.max(MINIMUM_PRICE, pennyUnder);
+                } else {
+                    // Use the greater of market price or original inventory price
+                    calculatedPrice = item.originalPrice ? Math.max(marketPrice, item.originalPrice) : marketPrice;
+                }
             } 
-            // All other cards: Use the standard formula
+            // Standard cards: $0.30 < Market Price <= $30 - strategy-dependent calculation
             else {
-                // max($0.50, avg(TCG Low Price, TCG Low Price with Shipping), Market Price)
-                
-                // Calculate average of TCG Low Price and TCG Low Price with Shipping
-                const lowPriceAverage = (lowPrice + lowShipping) / 2;
-                
-                // Take the maximum of: minimum price, low price average, and market price
-                calculatedPrice = Math.max(MINIMUM_PRICE, lowPriceAverage, marketPrice);
+                if (pricingStrategy === 'PRICING_STRATEGY_HIGHEST_VOLUME') {
+                    // HIGHEST_VOLUME: max($0.50, avg(valid prices))
+                    const validPrices = [lowPrice, lowShipping, marketPrice].filter(p => p > 0);
+                    const average = validPrices.length > 0 ? validPrices.reduce((a, b) => a + b) / validPrices.length : marketPrice;
+                    calculatedPrice = Math.max(MINIMUM_PRICE, average);
+                } else if (pricingStrategy === 'PRICING_STRATEGY_PENNY_UNDER_AVERAGE') {
+                    // PENNY_UNDER_AVERAGE: max($0.50, avg(valid prices) - $0.01)
+                    const validPrices = [marketPrice, lowPrice].filter(p => p > 0);
+                    const average = validPrices.length > 0 ? validPrices.reduce((a, b) => a + b) / validPrices.length : marketPrice;
+                    calculatedPrice = Math.max(MINIMUM_PRICE, average - 0.01);
+                } else {
+                    // HIGHEST_PROFIT (default): max($0.50, avg(valid low prices), Market Price)
+                    const validLowPrices = [lowPrice, lowShipping].filter(p => p > 0);
+                    const lowPriceAverage = validLowPrices.length > 0 ? validLowPrices.reduce((a, b) => a + b) / validLowPrices.length : 0;
+                    calculatedPrice = Math.max(MINIMUM_PRICE, lowPriceAverage, marketPrice);
+                }
             }
             
             // Round to 2 decimal places

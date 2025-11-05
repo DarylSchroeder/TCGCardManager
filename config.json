@@ -1,0 +1,17 @@
+{
+  "pricing": {
+    "strategy": "PRICING_STRATEGY_HIGHEST_VOLUME",
+    "strategies": {
+      "PRICING_STRATEGY_HIGHEST_PROFIT": {
+        "name": "Highest Profit",
+        "description": "Maximizes profit margins by taking the highest of market price and low price average",
+        "standardCardFormula": "max($0.50, avg(TCG Low Price, TCG Low Price with Shipping), Market Price)"
+      },
+      "PRICING_STRATEGY_HIGHEST_VOLUME": {
+        "name": "Highest Volume", 
+        "description": "Optimizes for sales volume by averaging all three price points",
+        "standardCardFormula": "max($0.50, avg(TCG Low Price, TCG Low Price with Shipping, Market Price))"
+      }
+    }
+  }
+}
