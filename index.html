@@ -1305,7 +1305,6 @@
 
         function calculateTCGPrice(item) {
             const MINIMUM_PRICE = 0.50;
-            const MY_SHIPPING_PRICE = 0.99;
 
             const marketPrice = Number(item.marketPrice || 0);
             const lowPrice = Number(item.lowPrice || 0);
@@ -1358,14 +1357,31 @@
             }
 
             // Rulebook:
-            // adjusted listing price =
-            // lowest listing + shipping - my shipping cost
-            const lowestWithShippingAdjusted =
-                lowPrice + estimatedShipping - MY_SHIPPING_PRICE;
-
-            // Rulebook:
             // true market = greater of market or low
             const trueMarket = Math.max(marketPrice, lowPrice);
+
+            // Sliding shipping advantage scale
+            let shippingAdvantage;
+
+            if (trueMarket < 2) {
+                // Bulk / low-end cards:
+                // aggressive pricing helps inventory move
+                shippingAdvantage = 0.99;
+            } else if (trueMarket < 10) {
+                // Mid-range cards:
+                // moderate competitive advantage
+                shippingAdvantage = 0.50;
+            } else {
+                // Higher-end cards:
+                // preserve margin, slight competitive edge only
+                shippingAdvantage = 0.25;
+            }
+
+            // Rulebook:
+            // adjusted listing price =
+            // lowest listing + shipping - shipping advantage
+            const lowestWithShippingAdjusted =
+                lowPrice + estimatedShipping - shippingAdvantage;
 
             // Rulebook:
             // preliminary = lower of:
