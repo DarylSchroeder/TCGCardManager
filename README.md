@@ -30,11 +30,6 @@ A comprehensive web application for managing your trading card game collection w
 3. Run the server: `./run.sh`
 4. Open your browser to: `http://localhost:3000`
 
-### Configuration
-- **Pricing Strategy**: Configure in `config.json` under `pricing.strategy`
-- **Available Strategies**: `PRICING_STRATEGY_HIGHEST_PROFIT` (default) or `PRICING_STRATEGY_HIGHEST_VOLUME`
-- **Strategy Selection**: Use the dropdown in the pricing section of the UI
-
 ## User Workflow
 
 ### Basic Card Management
@@ -50,13 +45,7 @@ A comprehensive web application for managing your trading card game collection w
 
 ## Pricing Rules
 
-The pricing tool follows TCG marketplace rules with competitive weighting and supports two pricing strategies:
-
-### Pricing Strategies
-- **PRICING_STRATEGY_HIGHEST_PROFIT** (Default): Maximizes profit margins by taking the highest of market price and low price average
-- **PRICING_STRATEGY_HIGHEST_VOLUME**: Optimizes for sales volume by averaging all three price points
-
-Strategy can be configured in `config.json` under `pricing.strategy`.
+The pricing tool follows one optimized TCG marketplace strategy with a sliding shipping advantage.
 
 ### Named Card Exclusions
 Specific high-value cards preserve their original inventory price regardless of market conditions:
@@ -66,11 +55,11 @@ Specific high-value cards preserve their original inventory price regardless of 
 
 ### Standard Pricing Rules
 - **Minimum Price**: No card priced below $0.50
-- **Cheap Cards** (≤ $0.30): max($0.50, TCG Low Price)
-- **Standard Cards** ($0.30 - $30): 
-  - **HIGHEST_PROFIT**: max($0.50, avg(TCG Low Price, TCG Low Price with Shipping), Market Price)
-  - **HIGHEST_VOLUME**: max($0.50, avg(TCG Low Price, TCG Low Price with Shipping, Market Price))
-- **Expensive Cards** (> $30): max(Market Price, Original Inventory Price)
+- **Named Exclusions**: preserve original inventory price
+- **Expensive Cards** (Market or Low Price > $30): preserve original inventory price
+- **Cheap Cards** (Market and Low Price below $0.50): set to $0.50
+- **Standard Cards**: use the lower of true market value and the shipping-adjusted low listing, then apply the $0.50 floor
+- **Shipping Advantage**: subtract $0.99 below $2, $0.50 from $2 to $9.99, and $0.25 at $10 or above
 
 ## UI Layout
 
@@ -109,7 +98,7 @@ node test/pricing-integration.test.js    # Full pricing workflow
 
 ### Test Coverage
 - **CSV Tests**: Parsing, escaping, export, and round-trip functionality
-- **Pricing Tests**: Validates all TCG pricing rule calculations and edge cases, including both pricing strategies
+- **Pricing Tests**: Validates all TCG pricing rule calculations and edge cases
 - **Integration Tests**: Verifies CSV data handling and real file operations
 - **Pricing Integration**: Full workflow testing (import → calculate → export)
 

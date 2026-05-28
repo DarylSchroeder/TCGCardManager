@@ -204,14 +204,6 @@
                     <button class="btn btn-outline-danger btn-sm" onclick="clearInventory()">
                         <i class="fas fa-trash me-1"></i>Clear Inventory
                     </button>
-                    <div class="form-group ms-3 d-inline-block">
-                        <label for="pricingStrategySelect" class="form-label me-2">Pricing Strategy:</label>
-                        <select class="form-select d-inline-block" id="pricingStrategySelect" style="width: auto;">
-                            <option value="PRICING_STRATEGY_HIGHEST_PROFIT">Highest Profit</option>
-                            <option value="PRICING_STRATEGY_HIGHEST_VOLUME">Highest Volume</option>
-                            <option value="PRICING_STRATEGY_PENNY_UNDER_AVERAGE">Penny Under Average</option>
-                        </select>
-                    </div>
                 </div>
             </div>
         </div>
@@ -336,6 +328,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Papa Parse for CSV handling -->
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="js/pricing.js"></script>
 
     <script>
         // Application State
@@ -347,28 +340,7 @@
         let currentSortDirection = 'asc';
 
         // Initialize app
-        // Load configuration from server
-        async function loadConfig() {
-            try {
-                const response = await fetch('/config.json');
-                if (response.ok) {
-                    const config = await response.json();
-                    // Set default pricing strategy
-                    const strategySelect = document.getElementById('pricingStrategySelect');
-                    if (strategySelect && config.pricing && config.pricing.strategy) {
-                        strategySelect.value = config.pricing.strategy;
-                    }
-                    return config;
-                }
-            } catch (error) {
-                console.log('Config file not found, using defaults');
-            }
-            return null;
-        }
-
-        document.addEventListener('DOMContentLoaded', async function() {
-            await loadConfig(); // Load config first
-            
+        document.addEventListener('DOMContentLoaded', function() {
             // Set local timestamp for debugging
             const now = new Date();
             const timestamp = now.toLocaleString('en-US', {
@@ -1303,105 +1275,6 @@
             }
         }
 
-        function calculateTCGPrice(item) {
-            const MINIMUM_PRICE = 0.50;
-
-            const marketPrice = Number(item.marketPrice || 0);
-            const lowPrice = Number(item.lowPrice || 0);
-            const lowShipping = Number(item.lowShipping || 0);
-            const originalPrice = Number(item.originalPrice || 0);
-
-            // Derive listing + shipping components
-            // lowShipping = listing price + shipping
-            const estimatedShipping = Math.max(0, lowShipping - lowPrice);
-
-            // Rulebook: Named card exclusions
-            // These cards always preserve original inventory pricing
-            const EXCLUDED_CARDS = [
-                'Godless Shrine',
-                'Cavern of Souls',
-
-                // Shock Lands
-                'Temple Garden',
-                'Steam Vents',
-                'Overgrown Tomb',
-                'Sacred Foundry',
-                'Watery Grave',
-                'Stomping Ground',
-                'Breeding Pool',
-                'Blood Crypt',
-                'Hallowed Fountain'
-            ];
-
-            const isExcludedCard = EXCLUDED_CARDS.some(excludedName =>
-                item.name &&
-                item.name.toLowerCase().includes(excludedName.toLowerCase())
-            );
-
-            // Rulebook: Named exclusions preserve original pricing
-            if (isExcludedCard) {
-                return roundPrice(originalPrice);
-            }
-
-            // Rulebook: Expensive cards are manually managed
-            // Preserve original inventory pricing
-            if (marketPrice > 30 || lowPrice > 30) {
-                return roundPrice(originalPrice);
-            }
-
-            // Rulebook: Cheap-card override
-            // If BOTH market and low are below minimum floor,
-            // force minimum price
-            if (marketPrice < MINIMUM_PRICE && lowPrice < MINIMUM_PRICE) {
-                return MINIMUM_PRICE;
-            }
-
-            // Rulebook:
-            // true market = greater of market or low
-            const trueMarket = Math.max(marketPrice, lowPrice);
-
-            // Sliding shipping advantage scale
-            let shippingAdvantage;
-
-            if (trueMarket < 2) {
-                // Bulk / low-end cards:
-                // aggressive pricing helps inventory move
-                shippingAdvantage = 0.99;
-            } else if (trueMarket < 10) {
-                // Mid-range cards:
-                // moderate competitive advantage
-                shippingAdvantage = 0.50;
-            } else {
-                // Higher-end cards:
-                // preserve margin, slight competitive edge only
-                shippingAdvantage = 0.25;
-            }
-
-            // Rulebook:
-            // adjusted listing price =
-            // lowest listing + shipping - shipping advantage
-            const lowestWithShippingAdjusted =
-                lowPrice + estimatedShipping - shippingAdvantage;
-
-            // Rulebook:
-            // preliminary = lower of:
-            // - true market
-            // - adjusted lowest listing
-            const preliminaryPrice = Math.min(
-                trueMarket,
-                lowestWithShippingAdjusted
-            );
-
-            // Rulebook:
-            // absolute minimum floor
-            const finalPrice = Math.max(
-                preliminaryPrice,
-                MINIMUM_PRICE
-            );
-
-            return roundPrice(finalPrice);
-        }
-
         function updateAllPrices() {
             let updatedCount = 0;
             
@@ -1840,10 +1713,6 @@
             result.push(current.trim());
             
             return result;
-        }
-
-        function roundPrice(price) {
-            return Math.round((parseFloat(price) || 0) * 100) / 100;
         }
 
         function showLoading(show) {

@@ -3,6 +3,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { calculateTCGPrice } = require('../js/pricing');
 
 // Sample TCGplayer CSV with cards from different pricing categories
 const sampleTCGPlayerCSV = `TCGplayer Id,Product Line,Set Name,Product Name,Title,Number,Rarity,Condition,TCG Market Price,TCG Direct Low,TCG Low Price With Shipping,TCG Low Price,Total Quantity,Add to Quantity,TCG Marketplace Price,Photo URL
@@ -11,29 +12,6 @@ const sampleTCGPlayerCSV = `TCGplayer Id,Product Line,Set Name,Product Name,Titl
 "34567","Magic","Zendikar","Scalding Tarn","","1","R","Near Mint","15.50","14.00","16.25","14.50","2","0","15.50","https://example.com/tarn.jpg"
 "45678","Magic","Innistrad","Snapcaster Mage","","78","R","Near Mint","45.00","42.00","44.50","43.00","1","0","45.00","https://example.com/snap.jpg"
 "56789","Magic","Time Spiral","Niv-Mizzet, the Firemind","","225","R","Near Mint","2.75","2.50","3.25","2.60","3","0","2.75","https://example.com/niv.jpg"`;
-
-// Simulate the pricing calculation logic from the main application
-function calculatePrice(tcgMarketPrice, tcgLowPrice, tcgLowWithShipping) {
-    const marketPrice = tcgMarketPrice;
-    const lowPrice = tcgLowPrice;
-    const lowWithShipping = tcgLowWithShipping;
-    
-    let estimatedPrice;
-    
-    if (marketPrice <= 0.30) {
-        // Cheap cards
-        estimatedPrice = Math.max(0.50, lowPrice);
-    } else if (marketPrice > 30) {
-        // Expensive cards
-        estimatedPrice = marketPrice;
-    } else {
-        // Standard cards
-        const avgLowAndMarket = (lowWithShipping + marketPrice) / 2;
-        estimatedPrice = Math.max(0.50, Math.max(lowPrice, avgLowAndMarket));
-    }
-    
-    return estimatedPrice;
-}
 
 // Simulate the import function
 function importTCGPlayerCSV(csvContent) {
@@ -79,11 +57,13 @@ function importTCGPlayerCSV(csvContent) {
 // Simulate the pricing calculation step
 function calculateInventoryPricing(inventory) {
     inventory.forEach(item => {
-        const calculatedPrice = calculatePrice(
-            item.tcgMarketPrice,
-            item.tcgLowPrice, 
-            item.tcgLowWithShipping
-        );
+        const calculatedPrice = calculateTCGPrice({
+            name: item.card.name,
+            marketPrice: item.tcgMarketPrice,
+            lowPrice: item.tcgLowPrice,
+            lowShipping: item.tcgLowWithShipping,
+            originalPrice: item.price
+        });
         
         // Update the item's price with the calculated value
         item.price = calculatedPrice;
@@ -217,29 +197,29 @@ function testFullPricingIntegration() {
     // Validate pricing calculations
     console.log('   Validating pricing calculations:');
     
-    // Black Lotus: $8500 market (expensive card) → should keep market price
+    // Black Lotus: expensive card -> preserve original price
     console.log(`   Black Lotus: Market ${formatPrice(blackLotus.tcgMarketPrice)} → Calculated ${formatPrice(blackLotus.calculatedPrice)}`);
     console.assert(Math.abs(blackLotus.calculatedPrice - 8500.00) < 0.01, 
         `Black Lotus should be $8500.00, got ${blackLotus.calculatedPrice}`);
     
-    // Lightning Bolt: $0.25 market (cheap card) → max($0.50, $0.20) = $0.50
+    // Lightning Bolt: market and low below minimum -> $0.50 floor
     console.log(`   Lightning Bolt: Market ${formatPrice(lightningBolt.tcgMarketPrice)} → Calculated ${formatPrice(lightningBolt.calculatedPrice)}`);
     console.assert(Math.abs(lightningBolt.calculatedPrice - 0.50) < 0.01,
         `Lightning Bolt should be $0.50, got ${lightningBolt.calculatedPrice}`);
     
-    // Scalding Tarn: $15.50 market (standard card) → max($0.50, max($14.50, avg($16.25, $15.50))) = max($0.50, max($14.50, $15.875)) = $15.875
-    const expectedTarn = Math.max(0.50, Math.max(14.50, (16.25 + 15.50) / 2));
+    // Scalding Tarn: high-end standard card -> min(true market, low plus shipping minus $0.25)
+    const expectedTarn = 15.50;
     console.log(`   Scalding Tarn: Market ${formatPrice(scaldingTarn.tcgMarketPrice)} → Calculated ${formatPrice(scaldingTarn.calculatedPrice)}`);
     console.assert(Math.abs(scaldingTarn.calculatedPrice - expectedTarn) < 0.01,
         `Scalding Tarn should be ${expectedTarn}, got ${scaldingTarn.calculatedPrice}`);
     
-    // Snapcaster Mage: $45.00 market (expensive card) → should keep market price
+    // Snapcaster Mage: expensive card -> preserve original price
     console.log(`   Snapcaster Mage: Market ${formatPrice(snapcaster.tcgMarketPrice)} → Calculated ${formatPrice(snapcaster.calculatedPrice)}`);
     console.assert(Math.abs(snapcaster.calculatedPrice - 45.00) < 0.01,
         `Snapcaster Mage should be $45.00, got ${snapcaster.calculatedPrice}`);
     
-    // Niv-Mizzet: $2.75 market (standard card) → max($0.50, max($2.60, avg($3.25, $2.75))) = max($0.50, max($2.60, $3.00)) = $3.00
-    const expectedNiv = Math.max(0.50, Math.max(2.60, (3.25 + 2.75) / 2));
+    // Niv-Mizzet: mid-range standard card -> min(true market, low plus shipping minus $0.50)
+    const expectedNiv = 2.75;
     console.log(`   Niv-Mizzet: Market ${formatPrice(nivMizzet.tcgMarketPrice)} → Calculated ${formatPrice(nivMizzet.calculatedPrice)}`);
     console.assert(Math.abs(nivMizzet.calculatedPrice - expectedNiv) < 0.01,
         `Niv-Mizzet should be ${expectedNiv}, got ${nivMizzet.calculatedPrice}`);
@@ -333,9 +313,9 @@ function testFullPricingIntegration() {
     console.log('📊 Integration Test Summary:');
     console.log('✅ Import: Successfully parsed 5 cards from TCGplayer CSV');
     console.log('✅ Pricing: Correctly applied business rules to all price categories');
-    console.log('   • Expensive cards (Black Lotus, Snapcaster): Preserved market price');
+    console.log('   • Expensive cards (Black Lotus, Snapcaster): Preserved original price');
     console.log('   • Cheap cards (Lightning Bolt): Applied $0.50 minimum');
-    console.log('   • Standard cards (Scalding Tarn, Niv-Mizzet): Used max(low, average) logic');
+    console.log('   • Standard cards (Scalding Tarn, Niv-Mizzet): Applied sliding shipping advantage');
     console.log('✅ Export: Generated properly formatted CSV with calculated prices');
     console.log('✅ Format: All fields quoted, prices to 2 decimals, commas handled');
     console.log('✅ Round-trip: No data loss through full import/export cycle');

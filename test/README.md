@@ -17,11 +17,10 @@ A comprehensive JavaScript test suite to validate CSV import/export functionalit
 - **Real Data**: Uses actual TCGplayer CSV format with complex card names
 
 ### Pricing Logic Tests (`pricing.test.js`)
-- **Cheap Cards (≤ $0.30)**: Tests `max($0.50, TCG Low Price)` rule
-- **Standard Cards ($0.30-$30)**: Tests `max($0.50, max(low, avg))` rule  
-- **Expensive Cards (> $30)**: Tests market price preservation
-- **Edge Cases**: Boundary conditions, rounding, zero values
-- **Real-World Scenarios**: Common/uncommon/rare/mythic pricing patterns
+- **Protected Prices**: Tests named exclusions and expensive cards preserving original inventory price
+- **Minimum Floor**: Tests the `$0.50` floor
+- **Sliding Shipping Advantage**: Tests `$0.99`, `$0.50`, and `$0.25` advantage tiers
+- **True Market Cap**: Tests capping standard prices against true market value
 
 ### Pricing Integration Tests (`pricing-integration.test.js`)
 - **Full Workflow**: Tests complete Import → Calculate Pricing → Export cycle
