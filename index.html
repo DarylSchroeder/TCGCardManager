@@ -1305,19 +1305,24 @@
 
         function calculateTCGPrice(item) {
             const MINIMUM_PRICE = 0.50;
-            const marketPrice = item.marketPrice || 0;
-            const lowPrice = item.lowPrice || 0;
-            const lowShipping = item.lowShipping || 0;
-            
-            // Get selected pricing strategy
-            const strategySelect = document.getElementById('pricingStrategySelect');
-            const pricingStrategy = strategySelect ? strategySelect.value : 'PRICING_STRATEGY_HIGHEST_PROFIT';
-            
-            // Named Card Exclusions: Specific cards that should keep their original price
+            const MY_SHIPPING_PRICE = 0.99;
+
+            const marketPrice = Number(item.marketPrice || 0);
+            const lowPrice = Number(item.lowPrice || 0);
+            const lowShipping = Number(item.lowShipping || 0);
+            const originalPrice = Number(item.originalPrice || 0);
+
+            // Derive listing + shipping components
+            // lowShipping = listing price + shipping
+            const estimatedShipping = Math.max(0, lowShipping - lowPrice);
+
+            // Rulebook: Named card exclusions
+            // These cards always preserve original inventory pricing
             const EXCLUDED_CARDS = [
                 'Godless Shrine',
                 'Cavern of Souls',
-                // Shock Lands (all 10)
+
+                // Shock Lands
                 'Temple Garden',
                 'Steam Vents',
                 'Overgrown Tomb',
@@ -1329,59 +1334,56 @@
                 'Hallowed Fountain'
             ];
 
-            let calculatedPrice;
-            
-            // Named Card Exclusions: Keep original price for cards containing these names (case-insensitive)
-            const isExcludedCard = EXCLUDED_CARDS.some(excludedName => 
-                item.name && item.name.toLowerCase().includes(excludedName.toLowerCase())
+            const isExcludedCard = EXCLUDED_CARDS.some(excludedName =>
+                item.name &&
+                item.name.toLowerCase().includes(excludedName.toLowerCase())
             );
-            
+
+            // Rulebook: Named exclusions preserve original pricing
             if (isExcludedCard) {
-                // Keep the original price (your existing price, not the market price)
-                calculatedPrice = item.originalPrice || marketPrice;
+                return roundPrice(originalPrice);
             }
-            // Cheap cards: Market Price <= $0.30
-            else if (marketPrice <= 0.30) {
-                // max($0.50, TCG Low Price)
-                calculatedPrice = Math.max(MINIMUM_PRICE, lowPrice);
+
+            // Rulebook: Expensive cards are manually managed
+            // Preserve original inventory pricing
+            if (marketPrice > 30 || lowPrice > 30) {
+                return roundPrice(originalPrice);
             }
-            // Expensive Cards: Market Price > $30
-            else if (marketPrice > 30) {
-                if (pricingStrategy === 'PRICING_STRATEGY_PENNY_UNDER_AVERAGE') {
-                    // PENNY_UNDER_AVERAGE: max($0.50, avg(valid prices) - $0.01, Original Price)
-                    const validPrices = [marketPrice, lowPrice].filter(p => p > 0);
-                    const average = validPrices.length > 0 ? validPrices.reduce((a, b) => a + b) / validPrices.length : marketPrice;
-                    const pennyUnder = average - 0.01;
-                    calculatedPrice = item.originalPrice ? 
-                        Math.max(MINIMUM_PRICE, pennyUnder, item.originalPrice) : 
-                        Math.max(MINIMUM_PRICE, pennyUnder);
-                } else {
-                    // Use the greater of market price or original inventory price
-                    calculatedPrice = item.originalPrice ? Math.max(marketPrice, item.originalPrice) : marketPrice;
-                }
-            } 
-            // Standard cards: $0.30 < Market Price <= $30 - strategy-dependent calculation
-            else {
-                if (pricingStrategy === 'PRICING_STRATEGY_HIGHEST_VOLUME') {
-                    // HIGHEST_VOLUME: max($0.50, avg(valid prices))
-                    const validPrices = [lowPrice, lowShipping, marketPrice].filter(p => p > 0);
-                    const average = validPrices.length > 0 ? validPrices.reduce((a, b) => a + b) / validPrices.length : marketPrice;
-                    calculatedPrice = Math.max(MINIMUM_PRICE, average);
-                } else if (pricingStrategy === 'PRICING_STRATEGY_PENNY_UNDER_AVERAGE') {
-                    // PENNY_UNDER_AVERAGE: max($0.50, avg(valid prices) - $0.01)
-                    const validPrices = [marketPrice, lowPrice].filter(p => p > 0);
-                    const average = validPrices.length > 0 ? validPrices.reduce((a, b) => a + b) / validPrices.length : marketPrice;
-                    calculatedPrice = Math.max(MINIMUM_PRICE, average - 0.01);
-                } else {
-                    // HIGHEST_PROFIT (default): max($0.50, avg(valid low prices), Market Price)
-                    const validLowPrices = [lowPrice, lowShipping].filter(p => p > 0);
-                    const lowPriceAverage = validLowPrices.length > 0 ? validLowPrices.reduce((a, b) => a + b) / validLowPrices.length : 0;
-                    calculatedPrice = Math.max(MINIMUM_PRICE, lowPriceAverage, marketPrice);
-                }
+
+            // Rulebook: Cheap-card override
+            // If BOTH market and low are below minimum floor,
+            // force minimum price
+            if (marketPrice < MINIMUM_PRICE && lowPrice < MINIMUM_PRICE) {
+                return MINIMUM_PRICE;
             }
-            
-            // Round to 2 decimal places
-            return Math.round(calculatedPrice * 100) / 100;
+
+            // Rulebook:
+            // adjusted listing price =
+            // lowest listing + shipping - my shipping cost
+            const lowestWithShippingAdjusted =
+                lowPrice + estimatedShipping - MY_SHIPPING_PRICE;
+
+            // Rulebook:
+            // true market = greater of market or low
+            const trueMarket = Math.max(marketPrice, lowPrice);
+
+            // Rulebook:
+            // preliminary = lower of:
+            // - true market
+            // - adjusted lowest listing
+            const preliminaryPrice = Math.min(
+                trueMarket,
+                lowestWithShippingAdjusted
+            );
+
+            // Rulebook:
+            // absolute minimum floor
+            const finalPrice = Math.max(
+                preliminaryPrice,
+                MINIMUM_PRICE
+            );
+
+            return roundPrice(finalPrice);
         }
 
         function updateAllPrices() {
@@ -1389,7 +1391,11 @@
             
             inventory.forEach(item => {
                 // Only update if we have the necessary pricing data
-                if (item.marketPrice && item.lowPrice && item.lowShipping) {
+                if (
+                    item.marketPrice !== undefined &&
+                    item.lowPrice !== undefined &&
+                    item.lowShipping !== undefined
+                ) {
                     const newPrice = calculateTCGPrice(item);
                     if (newPrice !== item.calculatedPrice) {
                         item.calculatedPrice = newPrice;
