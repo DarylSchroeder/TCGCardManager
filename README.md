@@ -45,7 +45,7 @@ A comprehensive web application for managing your trading card game collection w
 
 ## Pricing Rules
 
-The pricing tool follows one optimized TCG marketplace strategy with a sliding shipping advantage.
+The pricing tool provides two switchable TCG marketplace strategies. Choose one from the pricing-strategy menu, then click **Update Prices** to apply it to the inventory. The selected strategy is saved in the browser and each updated inventory item records the strategy used.
 
 ### Named Card Exclusions
 Specific high-value cards preserve their original inventory price regardless of market conditions:
@@ -60,6 +60,12 @@ Specific high-value cards preserve their original inventory price regardless of 
 - **Cheap Cards** (Market and Low Price below $0.50): set to $0.50
 - **Standard Cards**: use the lower of true market value and the shipping-adjusted low listing, then apply the $0.50 floor
 - **Shipping Advantage**: subtract $0.99 below $2, $0.50 from $2 to $9.99, and $0.25 at $10 or above
+
+### Available Strategies
+- **Shipping-adjusted low** (default): the standard pricing rule above.
+- **Undercut TCG Low by $0.01**: list one cent below TCG Low, while retaining every named-card, high-value, and minimum-price guardrail.
+
+Cards with a valid market price but no TCG Low are still floored at $0.50. They are highlighted with a warning icon and automatically shown first in the inventory grid so they can be reviewed before listing.
 
 ## UI Layout
 
