@@ -1,5 +1,5 @@
 // Pricing Logic Functional Tests
-const { calculateTCGPrice, roundPrice } = require('../js/pricing');
+const { calculatePrice: calculateWithStrategy, calculateTCGPrice, needsPricingReview, roundPrice } = require('../js/pricing');
 
 function calculatePrice(tcgMarketPrice, tcgLowPrice, tcgLowWithShipping, cardName = '', originalPrice = 0) {
     return calculateTCGPrice({
@@ -115,6 +115,43 @@ function testTrueMarketCap() {
     );
 }
 
+function testUndercutLowStrategy() {
+    console.log('Testing undercut-low strategy\n');
+
+    const undercut = (marketPrice, lowPrice, lowShipping, cardName = '', originalPrice = 0) =>
+        calculateWithStrategy({ name: cardName, marketPrice, lowPrice, lowShipping, originalPrice }, 'undercutLow');
+
+    const scenarios = [
+        ['Undercuts TCG Low by one cent', 8.62, 8.00, 9.25, 7.99],
+        ['Honors the minimum floor', 0.75, 0.50, 0.60, 0.50],
+        ['Retains protected-card guardrail', 18.50, 16.00, 17.25, 25.00, 'Steam Vents', 25.00],
+        ['Retains high-value guardrail', 45.00, 28.00, 29.00, 40.00, 'Snapcaster Mage', 40.00]
+    ];
+
+    scenarios.forEach(([description, marketPrice, lowPrice, lowShipping, expected, cardName, originalPrice]) => {
+        const actual = undercut(marketPrice, lowPrice, lowShipping, cardName, originalPrice);
+        const passed = Math.abs(actual - expected) < 0.001;
+        console.log(`${passed ? 'PASS' : 'FAIL'} UNDERCUT_LOW: ${description}`);
+        if (!passed) throw new Error(`Pricing test failed: ${description}; expected ${expected}, got ${actual}`);
+    });
+    console.log('');
+}
+
+function testPricingReviewFlags() {
+    console.log('Testing pricing review flags\n');
+
+    const missingLow = needsPricingReview({ marketPrice: 0.59, lowPrice: 0 });
+    const validLow = needsPricingReview({ marketPrice: 0.59, lowPrice: 0.50 });
+    const missingMarketWithValidLow = needsPricingReview({ marketPrice: 0, lowPrice: 0.59 });
+
+    if (!missingLow || validLow || missingMarketWithValidLow) {
+        throw new Error('Pricing review flag did not identify only a missing TCG Low with a valid market price');
+    }
+
+    console.log('PASS REVIEW: Missing TCG Low with a valid market price is flagged');
+    console.log('');
+}
+
 function runAllTests() {
     console.log('TCG Card Manager Pricing Tests');
     console.log('================================\n');
@@ -123,6 +160,8 @@ function runAllTests() {
     testMinimumFloor();
     testShippingAdvantageScale();
     testTrueMarketCap();
+    testUndercutLowStrategy();
+    testPricingReviewFlags();
 
     console.log('All pricing tests passed.\n');
 }
@@ -132,6 +171,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+    calculatePrice: calculateWithStrategy,
     calculateTCGPrice,
     roundPrice
 };

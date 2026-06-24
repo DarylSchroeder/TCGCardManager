@@ -195,6 +195,11 @@
                     <button class="btn btn-warning btn-sm me-2" onclick="importPrices()">
                         <i class="fas fa-dollar-sign me-1"></i>Import Prices
                     </button>
+                    <select id="pricingStrategy" class="form-select form-select-sm d-inline-block w-auto me-2"
+                            aria-label="Pricing strategy" onchange="updatePricingStrategy(this.value)">
+                        <option value="shippingAdjusted">Shipping-adjusted low</option>
+                        <option value="undercutLow">Undercut TCG Low by $0.01</option>
+                    </select>
                     <button class="btn btn-primary btn-sm me-2" onclick="updateAllPrices()">
                         <i class="fas fa-calculator me-1"></i>Update Prices
                     </button>
@@ -267,12 +272,13 @@
                                         <th class="sortable" data-sort="lowShipping">Low w/ Shipping <span class="sort-icon"></span></th>
                                         <th class="sortable" data-sort="originalPrice">Original Price <span class="sort-icon"></span></th>
                                         <th class="sortable" data-sort="calculatedPrice">Calculated Price <span class="sort-icon"></span></th>
+                                        <th>Review</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="inventoryTableBody">
                                     <tr>
-                                        <td colspan="12">
+                                        <td colspan="13">
                                             <div class="empty-state">
                                                 <i class="fas fa-box-open"></i>
                                                 <h5>No cards in inventory</h5>
@@ -338,6 +344,7 @@
         let priceData = []; // Store imported pricing data
         let currentSortField = 'name';
         let currentSortDirection = 'asc';
+        let activePricingStrategy = DEFAULT_PRICING_STRATEGY;
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
@@ -364,6 +371,7 @@
             
             loadInventoryFromStorage();
             loadPriceData(); // Load pricing data on startup
+            loadPricingStrategy();
             updateInventoryDisplay();
             updateSortIcons(); // Initialize sort icons
         });
@@ -993,9 +1001,12 @@
                         name: selectedCard.name,
                         marketPrice: marketPrice,
                         lowPrice: lowPrice,
-                        lowShipping: lowShipping
+                        lowShipping: lowShipping,
+                        // A newly discovered card has no prior listing price; market is the safe baseline
+                        // for guardrails that preserve an original price.
+                        originalPrice: marketPrice
                     };
-                    calculatedPrice = calculateTCGPrice(priceItem);
+                    calculatedPrice = calculatePrice(priceItem, activePricingStrategy);
                     
                     console.log(`💰 Found pricing for ${selectedCard.name} (${condition}): Market $${marketPrice}, Calculated $${calculatedPrice}`);
                 } else {
@@ -1011,6 +1022,11 @@
                     price: calculatedPrice,
                     originalPrice: calculatedPrice,
                     calculatedPrice: calculatedPrice,
+                    pricingStrategy: activePricingStrategy,
+                    pricingNeedsReview: needsPricingReview({ marketPrice, lowPrice }),
+                    pricingReviewReason: needsPricingReview({ marketPrice, lowPrice })
+                        ? 'TCG Low is missing; review this price before listing.'
+                        : '',
                     marketPrice: marketPrice,
                     lowPrice: lowPrice,
                     lowShipping: lowShipping,
@@ -1131,6 +1147,10 @@
          */
         function sortInventory(field, direction = 'asc') {
             return [...inventory].sort((a, b) => {
+                // Put data-quality warnings first regardless of the selected sort order.
+                const reviewDifference = Number(Boolean(b.pricingNeedsReview)) - Number(Boolean(a.pricingNeedsReview));
+                if (reviewDifference !== 0) return reviewDifference;
+
                 let aVal = a[field];
                 let bVal = b[field];
                 
@@ -1196,7 +1216,7 @@
             if (inventory.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="12">
+                        <td colspan="13">
                             <div class="empty-state">
                                 <i class="fas fa-box-open"></i>
                                 <h5>No cards in inventory</h5>
@@ -1218,7 +1238,7 @@
             countBadge.textContent = `${totalCards} cards • $${totalValue.toFixed(2)}`;
 
             tbody.innerHTML = sortedInventory.map(item => `
-                <tr>
+                <tr class="${item.pricingNeedsReview ? 'table-warning' : ''}">
                     <td>${item.name}</td>
                     <td>${item.set}</td>
                     <td>${item.number || 'N/A'}</td>
@@ -1238,6 +1258,14 @@
                                onchange="updateOriginalPrice('${item.id}', this.value)">
                     </td>
                     <td>$${(item.calculatedPrice || item.price).toFixed(2)}</td>
+                    <td>
+                        ${item.pricingNeedsReview ? `
+                            <i class="fas fa-exclamation-triangle text-warning"
+                               title="${item.pricingReviewReason || 'TCG Low is missing; review this price before listing.'}"
+                               aria-label="Pricing review required"></i>
+                            <span class="visually-hidden">Pricing review required</span>
+                        ` : ''}
+                    </td>
                     <td>
                         <button class="btn btn-sm btn-outline-danger" onclick="removeFromInventory('${item.id}')">
                             <i class="fas fa-trash"></i>
@@ -1277,6 +1305,8 @@
 
         function updateAllPrices() {
             let updatedCount = 0;
+            let processedCount = 0;
+            let reviewCount = 0;
             
             inventory.forEach(item => {
                 // Only update if we have the necessary pricing data
@@ -1285,18 +1315,27 @@
                     item.lowPrice !== undefined &&
                     item.lowShipping !== undefined
                 ) {
-                    const newPrice = calculateTCGPrice(item);
+                    const newPrice = calculatePrice(item, activePricingStrategy);
+                    processedCount++;
                     if (newPrice !== item.calculatedPrice) {
                         item.calculatedPrice = newPrice;
                         updatedCount++;
                     }
+                    item.pricingStrategy = activePricingStrategy;
+                    item.pricingNeedsReview = needsPricingReview(item);
+                    item.pricingReviewReason = item.pricingNeedsReview
+                        ? 'TCG Low is missing; review this price before listing.'
+                        : '';
+                    if (item.pricingNeedsReview) reviewCount++;
                 }
             });
             
-            if (updatedCount > 0) {
+            if (processedCount > 0) {
                 saveInventoryToStorage();
                 updateInventoryDisplay();
-                showMessage(`Updated prices for ${updatedCount} cards using TCG pricing rules`, 'success');
+                const strategy = PRICING_STRATEGIES[activePricingStrategy];
+                const reviewNote = reviewCount ? ` ${reviewCount} card${reviewCount === 1 ? '' : 's'} need review.` : '';
+                showMessage(`Applied ${strategy.label} to ${processedCount} cards (${updatedCount} price changes).${reviewNote}`, reviewCount ? 'warning' : 'success');
             } else {
                 showMessage('No cards were updated. Make sure your inventory has TCG pricing data.', 'warning');
             }
@@ -1370,11 +1409,36 @@
             }
         }
 
+        function loadPricingStrategy() {
+            const savedStrategy = localStorage.getItem('tcg_pricing_strategy');
+            if (PRICING_STRATEGIES[savedStrategy]) {
+                activePricingStrategy = savedStrategy;
+            }
+            document.getElementById('pricingStrategy').value = activePricingStrategy;
+        }
+
+        function updatePricingStrategy(strategyId) {
+            if (!PRICING_STRATEGIES[strategyId]) return;
+
+            activePricingStrategy = strategyId;
+            localStorage.setItem('tcg_pricing_strategy', activePricingStrategy);
+            showMessage(`Selected pricing strategy: ${PRICING_STRATEGIES[strategyId].label}. Click Update Prices to apply it.`, 'info');
+        }
+
         function loadInventoryFromStorage() {
             try {
                 const saved = localStorage.getItem('tcg_inventory_v2');
                 if (saved) {
-                    inventory = JSON.parse(saved);
+                    inventory = JSON.parse(saved).map(item => {
+                        const pricingNeedsReview = needsPricingReview(item);
+                        return {
+                            ...item,
+                            pricingNeedsReview,
+                            pricingReviewReason: pricingNeedsReview
+                                ? 'TCG Low is missing; review this price before listing.'
+                                : (item.pricingReviewReason || '')
+                        };
+                    });
                 }
             } catch (error) {
                 console.error('Failed to load inventory:', error);
@@ -1431,6 +1495,7 @@
                                 const marketPrice = roundPrice(row['TCG Market Price'] || 0);
                                 const lowPrice = roundPrice(row['TCG Low Price'] || 0);
                                 const lowShipping = roundPrice(row['TCG Low Price With Shipping'] || 0);
+                                const pricingNeedsReview = needsPricingReview({ marketPrice, lowPrice });
                                 
                                 // Only import cards with quantity > 0
                                 if (quantity <= 0) {
@@ -1451,6 +1516,10 @@
                                     lowShipping: lowShipping,
                                     originalPrice: price, // Store original marketplace price
                                     calculatedPrice: price, // For now, same as original
+                                    pricingNeedsReview: pricingNeedsReview,
+                                    pricingReviewReason: pricingNeedsReview
+                                        ? 'TCG Low is missing; review this price before listing.'
+                                        : '',
                                     imageUrl: '',
                                     // Store ALL original TCG data for export
                                     tcgplayerId: row['TCGplayer Id'] || '',
@@ -1486,6 +1555,8 @@
                                     lowShipping: price,
                                     originalPrice: price,
                                     calculatedPrice: price,
+                                    pricingNeedsReview: false,
+                                    pricingReviewReason: '',
                                     imageUrl: ''
                                 };
                                 
