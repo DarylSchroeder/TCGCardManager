@@ -7,6 +7,7 @@
     "start": "./run.sh",
     "test": "./test/run-tests.sh",
     "test:quantity": "node test/quantity-update-simple.test.js",
+    "validate:pricing-output": "node scripts/validate-pricing-output.js",
     "dev": "node server.js"
   },
   "keywords": [

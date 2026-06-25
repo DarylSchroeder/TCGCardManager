@@ -137,6 +137,30 @@ function testUndercutLowStrategy() {
     console.log('');
 }
 
+function testMarketAwareLowStrategy() {
+    console.log('Testing market-aware low strategy\n');
+
+    const marketAware = (marketPrice, lowPrice, lowShipping, cardName = '', originalPrice = 0) =>
+        calculateWithStrategy({ name: cardName, marketPrice, lowPrice, lowShipping, originalPrice }, 'marketAwareLow');
+
+    const scenarios = [
+        ['Undercuts TCG Low when it is within fifty cents of market', 5.00, 4.60, 5.25, 4.59],
+        ['Undercuts TCG Low when it is exactly fifty cents below market', 5.00, 4.50, 5.25, 4.49],
+        ['Undercuts market when TCG Low is more than fifty cents below market', 5.00, 4.49, 5.25, 4.99],
+        ['Honors the minimum floor', 0.75, 0.50, 0.60, 0.50],
+        ['Retains protected-card guardrail', 18.50, 16.00, 17.25, 25.00, 'Steam Vents', 25.00],
+        ['Retains high-value guardrail', 45.00, 28.00, 29.00, 40.00, 'Snapcaster Mage', 40.00]
+    ];
+
+    scenarios.forEach(([description, marketPrice, lowPrice, lowShipping, expected, cardName, originalPrice]) => {
+        const actual = marketAware(marketPrice, lowPrice, lowShipping, cardName, originalPrice);
+        const passed = Math.abs(actual - expected) < 0.001;
+        console.log(`${passed ? 'PASS' : 'FAIL'} MARKET_AWARE_LOW: ${description}`);
+        if (!passed) throw new Error(`Pricing test failed: ${description}; expected ${expected}, got ${actual}`);
+    });
+    console.log('');
+}
+
 function testPricingReviewFlags() {
     console.log('Testing pricing review flags\n');
 
@@ -161,6 +185,7 @@ function runAllTests() {
     testShippingAdvantageScale();
     testTrueMarketCap();
     testUndercutLowStrategy();
+    testMarketAwareLowStrategy();
     testPricingReviewFlags();
 
     console.log('All pricing tests passed.\n');
