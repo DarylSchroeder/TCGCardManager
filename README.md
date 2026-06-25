@@ -45,7 +45,7 @@ A comprehensive web application for managing your trading card game collection w
 
 ## Pricing Rules
 
-The pricing tool provides two switchable TCG marketplace strategies. Choose one from the pricing-strategy menu, then click **Update Prices** to apply it to the inventory. The selected strategy is saved in the browser and each updated inventory item records the strategy used.
+The pricing tool provides three switchable TCG marketplace strategies. Choose one from the pricing-strategy menu, then click **Update Prices** to apply it to the inventory. The selected strategy is saved in the browser and each updated inventory item records the strategy used.
 
 ### Named Card Exclusions
 Specific high-value cards preserve their original inventory price regardless of market conditions:
@@ -64,8 +64,9 @@ Specific high-value cards preserve their original inventory price regardless of 
 ### Available Strategies
 - **Shipping-adjusted low** (default): the standard pricing rule above.
 - **Undercut TCG Low by $0.01**: list one cent below TCG Low, while retaining every named-card, high-value, and minimum-price guardrail.
+- **Market-aware TCG Low**: list one cent below TCG Low, unless TCG Low is more than $0.50 below market price; then list one cent below market instead. This retains every named-card, high-value, and minimum-price guardrail.
 
-Cards with a valid market price but no TCG Low are still floored at $0.50. They are highlighted with a warning icon and automatically shown first in the inventory grid so they can be reviewed before listing.
+Cards with a valid market price but no TCG Low are highlighted with a warning icon and automatically shown first in the inventory grid so they can be reviewed before listing.
 
 ## UI Layout
 
@@ -101,6 +102,19 @@ node test/pricing.test.js                # TCG pricing rule calculations
 node test/integration.test.js            # Import/export integration
 node test/pricing-integration.test.js    # Full pricing workflow
 ```
+
+### Pricing Output Validation
+Use this when validating the consistent sample input/output files in `tmp/`:
+```bash
+npm run validate:pricing-output
+```
+
+By default, this reads the newest `tmp/TCGplayer__MyPricing_*.csv` input and newest `tmp/updated_inventory_*.csv` output, then validates them with the `marketAwareLow` strategy. You can override paths or strategy when needed:
+```bash
+node scripts/validate-pricing-output.js --input tmp/TCGplayer__MyPricing_20260625_125715.csv --output "tmp/updated_inventory_2026-06-25 (1).csv" --strategy marketAwareLow
+```
+
+The script only handles CSV discovery, parsing, matching, and reporting. It delegates price calculation to `js/pricing.js`, so future pricing-rule changes should be made in the application logic rather than duplicated in the validator.
 
 ### Test Coverage
 - **CSV Tests**: Parsing, escaping, export, and round-trip functionality

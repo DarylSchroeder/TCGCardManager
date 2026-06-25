@@ -24,6 +24,11 @@
             id: 'undercutLow',
             label: 'Undercut TCG Low by $0.01',
             description: 'Lists one cent below TCG Low while retaining the standard pricing guardrails.'
+        },
+        marketAwareLow: {
+            id: 'marketAwareLow',
+            label: 'Market-aware TCG Low',
+            description: 'Undercuts TCG Low unless it is more than $0.50 below market, then undercuts market instead.'
         }
     };
     const EXCLUDED_CARDS = [
@@ -84,6 +89,11 @@
 
         if (strategy.id === 'undercutLow') {
             return roundPrice(Math.max(lowPrice - 0.01, MINIMUM_PRICE));
+        }
+
+        if (strategy.id === 'marketAwareLow') {
+            const targetPrice = lowPrice < marketPrice - 0.50 ? marketPrice : lowPrice;
+            return roundPrice(Math.max(targetPrice - 0.01, MINIMUM_PRICE));
         }
 
         const trueMarket = Math.max(marketPrice, lowPrice);
