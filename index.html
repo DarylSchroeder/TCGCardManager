@@ -258,37 +258,69 @@
                         <span class="badge bg-light text-dark" id="inventoryCount">0 cards</span>
                     </div>
                     <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0">
-                                <thead>
-                                    <tr>
-                                        <th class="sortable" data-sort="name">Name <span class="sort-icon"></span></th>
-                                        <th class="sortable" data-sort="set">Set <span class="sort-icon"></span></th>
-                                        <th class="sortable" data-sort="number">Collector # <span class="sort-icon"></span></th>
-                                        <th class="sortable" data-sort="condition">Condition <span class="sort-icon"></span></th>
-                                        <th class="sortable" data-sort="foil">Foil <span class="sort-icon"></span></th>
-                                        <th class="sortable" data-sort="quantity">Qty <span class="sort-icon"></span></th>
-                                        <th class="sortable" data-sort="marketPrice">Market Price <span class="sort-icon"></span></th>
-                                        <th class="sortable" data-sort="lowPrice">Low Price <span class="sort-icon"></span></th>
-                                        <th class="sortable" data-sort="lowShipping">Low w/ Shipping <span class="sort-icon"></span></th>
-                                        <th class="sortable" data-sort="originalPrice">Original Price <span class="sort-icon"></span></th>
-                                        <th class="sortable" data-sort="calculatedPrice">Calculated Price <span class="sort-icon"></span></th>
-                                        <th>Review</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="inventoryTableBody">
-                                    <tr>
-                                        <td colspan="13">
-                                            <div class="empty-state">
-                                                <i class="fas fa-box-open"></i>
-                                                <h5>No cards in inventory</h5>
-                                                <p>Search and add cards to get started</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <ul class="nav nav-tabs px-3 pt-3" id="inventoryTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="inventory-main-tab" data-bs-toggle="tab"
+                                        data-bs-target="#inventory-main-pane" type="button" role="tab">
+                                    Inventory <span class="badge bg-secondary ms-1" id="mainInventoryCount">0</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="inventory-excluded-tab" data-bs-toggle="tab"
+                                        data-bs-target="#inventory-excluded-pane" type="button" role="tab">
+                                    Excluded Cards <span class="badge bg-warning text-dark ms-1" id="excludedInventoryCount">0</span>
+                                </button>
+                            </li>
+                        </ul>
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active" id="inventory-main-pane" role="tabpanel">
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th class="sortable" data-sort="name">Name <span class="sort-icon"></span></th>
+                                                <th class="sortable" data-sort="set">Set <span class="sort-icon"></span></th>
+                                                <th class="sortable" data-sort="number">Collector # <span class="sort-icon"></span></th>
+                                                <th class="sortable" data-sort="condition">Condition <span class="sort-icon"></span></th>
+                                                <th class="sortable" data-sort="foil">Foil <span class="sort-icon"></span></th>
+                                                <th class="sortable" data-sort="quantity">Qty <span class="sort-icon"></span></th>
+                                                <th class="sortable" data-sort="marketPrice">Market Price <span class="sort-icon"></span></th>
+                                                <th class="sortable" data-sort="lowPrice">Low Price <span class="sort-icon"></span></th>
+                                                <th class="sortable" data-sort="lowShipping">Low w/ Shipping <span class="sort-icon"></span></th>
+                                                <th class="sortable" data-sort="originalPrice">Original Price <span class="sort-icon"></span></th>
+                                                <th class="sortable" data-sort="calculatedPrice">Calculated Price <span class="sort-icon"></span></th>
+                                                <th>Review</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="inventoryTableBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="inventory-excluded-pane" role="tabpanel">
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th class="sortable" data-sort="name">Name <span class="sort-icon"></span></th>
+                                                <th class="sortable" data-sort="set">Set <span class="sort-icon"></span></th>
+                                                <th class="sortable" data-sort="number">Collector # <span class="sort-icon"></span></th>
+                                                <th class="sortable" data-sort="condition">Condition <span class="sort-icon"></span></th>
+                                                <th class="sortable" data-sort="foil">Foil <span class="sort-icon"></span></th>
+                                                <th class="sortable" data-sort="quantity">Qty <span class="sort-icon"></span></th>
+                                                <th class="sortable" data-sort="marketPrice">Market Price <span class="sort-icon"></span></th>
+                                                <th class="sortable" data-sort="lowPrice">Low Price <span class="sort-icon"></span></th>
+                                                <th class="sortable" data-sort="lowShipping">Low w/ Shipping <span class="sort-icon"></span></th>
+                                                <th class="sortable" data-sort="originalPrice">Original Price <span class="sort-icon"></span></th>
+                                                <th class="sortable" data-sort="calculatedPrice">Calculated Price <span class="sort-icon"></span></th>
+                                                <th>Review</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="excludedTableBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -983,6 +1015,7 @@
 
             if (existingItem) {
                 existingItem.quantity += 1;
+                existingItem.addToQuantity = existingItem.addToQuantity || 0;
             } else {
                 // Try to find pricing data for this card
                 const pricingData = findCardPricing(selectedCard.name, selectedCard.set_name, condition);
@@ -1031,9 +1064,15 @@
                     marketPrice: marketPrice,
                     lowPrice: lowPrice,
                     lowShipping: lowShipping,
+                    tcgDirectLow: pricingData ? pricingData.tcgDirectLow : '',
                     rarity: selectedCard.rarity,
                     number: selectedCard.collector_number,
-                    image: selectedCard.image_uris?.normal || selectedCard.image_uris?.large || ''
+                    image: selectedCard.image_uris?.normal || selectedCard.image_uris?.large || '',
+                    tcgplayerId: selectedCard.tcgplayer_id || '',
+                    productLine: 'Magic',
+                    title: selectedCard.name,
+                    addToQuantity: 0,
+                    photoUrl: selectedCard.image_uris?.normal || selectedCard.image_uris?.large || ''
                 };
                 inventory.push(inventoryItem);
             }
@@ -1146,8 +1185,8 @@
          * @param {string} direction - 'asc' or 'desc'
          * @returns {Array} - Sorted inventory array
          */
-        function sortInventory(field, direction = 'asc') {
-            return [...inventory].sort((a, b) => {
+        function sortInventory(field, direction = 'asc', items = inventory) {
+            return [...items].sort((a, b) => {
                 // Put data-quality warnings first regardless of the selected sort order.
                 const reviewDifference = Number(Boolean(b.pricingNeedsReview)) - Number(Boolean(a.pricingNeedsReview));
                 if (reviewDifference !== 0) return reviewDifference;
@@ -1204,76 +1243,122 @@
             });
             
             // Set active sort icon
-            const activeHeader = document.querySelector(`[data-sort="${currentSortField}"]`);
-            if (activeHeader) {
+            document.querySelectorAll(`[data-sort="${currentSortField}"]`).forEach(activeHeader => {
                 activeHeader.classList.add(currentSortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
-            }
+            });
         }
 
-        function updateInventoryDisplay() {
-            const tbody = document.getElementById('inventoryTableBody');
-            const countBadge = document.getElementById('inventoryCount');
-            
-            if (inventory.length === 0) {
-                tbody.innerHTML = `
+        function isExcludedInventoryItem(item) {
+            return typeof isExcludedCard === 'function' && isExcludedCard(item.name);
+        }
+
+        function getListingPrice(item) {
+            return roundPrice(item.calculatedPrice ?? item.originalPrice ?? item.price ?? 0);
+        }
+
+        function renderInventoryRows(items, emptyTitle, emptyMessage) {
+            if (items.length === 0) {
+                return `
                     <tr>
                         <td colspan="13">
                             <div class="empty-state">
                                 <i class="fas fa-box-open"></i>
-                                <h5>No cards in inventory</h5>
-                                <p>Search and add cards to get started</p>
+                                <h5>${emptyTitle}</h5>
+                                <p>${emptyMessage}</p>
                             </div>
                         </td>
                     </tr>
                 `;
+            }
+
+            return items.map(item => {
+                const rowClasses = [
+                    item.pricingNeedsReview ? 'table-warning' : '',
+                    isExcludedInventoryItem(item) ? 'table-info' : ''
+                ].filter(Boolean).join(' ');
+
+                return `
+                    <tr class="${rowClasses}">
+                        <td>
+                            ${item.name}
+                            ${isExcludedInventoryItem(item) ? '<span class="badge bg-info text-dark ms-2">Excluded</span>' : ''}
+                        </td>
+                        <td>${item.set}</td>
+                        <td>${item.number || 'N/A'}</td>
+                        <td>${getBaseCondition(item.condition)}</td>
+                        <td>${isFoilCondition(item.condition) ? '<i class="fas fa-star text-warning"></i>' : ''}</td>
+                        <td>
+                            <input type="number" class="form-control form-control-sm"
+                                   value="${item.quantity}" min="1" style="width: 80px;"
+                                   onchange="updateQuantity('${item.id}', this.value)">
+                        </td>
+                        <td>$${roundPrice(item.marketPrice || 0).toFixed(2)}</td>
+                        <td>$${roundPrice(item.lowPrice || 0).toFixed(2)}</td>
+                        <td>$${roundPrice(item.lowShipping || 0).toFixed(2)}</td>
+                        <td>
+                            <input type="number" class="form-control form-control-sm"
+                                   value="${roundPrice(item.originalPrice ?? item.price ?? 0).toFixed(2)}" min="0" step="0.01" style="width: 100px;"
+                                   onchange="updateOriginalPrice('${item.id}', this.value)">
+                        </td>
+                        <td>$${getListingPrice(item).toFixed(2)}</td>
+                        <td>
+                            ${item.pricingNeedsReview ? `
+                                <i class="fas fa-exclamation-triangle text-warning"
+                                   title="${item.pricingReviewReason || 'TCG Low is missing; review this price before listing.'}"
+                                   aria-label="Pricing review required"></i>
+                                <span class="visually-hidden">Pricing review required</span>
+                            ` : ''}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-danger" onclick="removeFromInventory('${item.id}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function updateInventoryDisplay() {
+            const tbody = document.getElementById('inventoryTableBody');
+            const excludedTbody = document.getElementById('excludedTableBody');
+            const countBadge = document.getElementById('inventoryCount');
+            const mainCountBadge = document.getElementById('mainInventoryCount');
+            const excludedCountBadge = document.getElementById('excludedInventoryCount');
+            
+            if (inventory.length === 0) {
+                tbody.innerHTML = renderInventoryRows([], 'No cards in inventory', 'Search and add cards to get started');
+                excludedTbody.innerHTML = renderInventoryRows([], 'No excluded cards', 'Excluded cards will appear here');
                 countBadge.textContent = '0 cards';
+                mainCountBadge.textContent = '0';
+                excludedCountBadge.textContent = '0';
                 return;
             }
 
-            // Sort inventory using current sort settings
-            const sortedInventory = sortInventory(currentSortField, currentSortDirection);
+            const regularInventory = inventory.filter(item => !isExcludedInventoryItem(item));
+            const excludedInventory = inventory.filter(isExcludedInventoryItem);
+            const sortedRegularInventory = sortInventory(currentSortField, currentSortDirection, regularInventory);
+            const sortedExcludedInventory = sortInventory(currentSortField, currentSortDirection, excludedInventory);
 
             const totalCards = inventory.reduce((sum, item) => sum + item.quantity, 0);
-            const totalValue = inventory.reduce((sum, item) => sum + ((item.calculatedPrice || item.price) * item.quantity), 0);
+            const totalValue = inventory.reduce((sum, item) => sum + (getListingPrice(item) * item.quantity), 0);
+            const regularCards = regularInventory.reduce((sum, item) => sum + item.quantity, 0);
+            const excludedCards = excludedInventory.reduce((sum, item) => sum + item.quantity, 0);
             
             countBadge.textContent = `${totalCards} cards • $${totalValue.toFixed(2)}`;
+            mainCountBadge.textContent = regularCards;
+            excludedCountBadge.textContent = excludedCards;
 
-            tbody.innerHTML = sortedInventory.map(item => `
-                <tr class="${item.pricingNeedsReview ? 'table-warning' : ''}">
-                    <td>${item.name}</td>
-                    <td>${item.set}</td>
-                    <td>${item.number || 'N/A'}</td>
-                    <td>${getBaseCondition(item.condition)}</td>
-                    <td>${isFoilCondition(item.condition) ? '<i class="fas fa-star text-warning"></i>' : ''}</td>
-                    <td>
-                        <input type="number" class="form-control form-control-sm" 
-                               value="${item.quantity}" min="1" style="width: 80px;"
-                               onchange="updateQuantity('${item.id}', this.value)">
-                    </td>
-                    <td>$${(item.marketPrice || 0).toFixed(2)}</td>
-                    <td>$${(item.lowPrice || 0).toFixed(2)}</td>
-                    <td>$${(item.lowShipping || 0).toFixed(2)}</td>
-                    <td>
-                        <input type="number" class="form-control form-control-sm" 
-                               value="${item.originalPrice || item.price}" min="0" step="0.01" style="width: 100px;"
-                               onchange="updateOriginalPrice('${item.id}', this.value)">
-                    </td>
-                    <td>$${(item.calculatedPrice || item.price).toFixed(2)}</td>
-                    <td>
-                        ${item.pricingNeedsReview ? `
-                            <i class="fas fa-exclamation-triangle text-warning"
-                               title="${item.pricingReviewReason || 'TCG Low is missing; review this price before listing.'}"
-                               aria-label="Pricing review required"></i>
-                            <span class="visually-hidden">Pricing review required</span>
-                        ` : ''}
-                    </td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-danger" onclick="removeFromInventory('${item.id}')">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = renderInventoryRows(
+                sortedRegularInventory,
+                'No regular cards in inventory',
+                excludedInventory.length ? 'All current cards are on the excluded tab' : 'Search and add cards to get started'
+            );
+            excludedTbody.innerHTML = renderInventoryRows(
+                sortedExcludedInventory,
+                'No excluded cards',
+                'Cards matching the pricing exclusion list will appear here'
+            );
         }
 
         function updateQuantity(itemId, newQuantity) {
@@ -1288,7 +1373,10 @@
         function updatePrice(itemId, newPrice) {
             const item = inventory.find(i => i.id === itemId);
             if (item) {
-                item.price = roundPrice(newPrice);
+                const price = roundPrice(newPrice);
+                item.price = price;
+                item.originalPrice = price;
+                item.calculatedPrice = price;
                 saveInventoryToStorage();
                 updateInventoryDisplay();
             }
@@ -1297,8 +1385,10 @@
         function updateOriginalPrice(itemId, newPrice) {
             const item = inventory.find(i => i.id === itemId);
             if (item) {
-                item.originalPrice = roundPrice(newPrice);
-                item.calculatedPrice = item.originalPrice; // Update calculated price too
+                const price = roundPrice(newPrice);
+                item.originalPrice = price;
+                item.calculatedPrice = price;
+                item.price = price;
                 saveInventoryToStorage();
                 updateInventoryDisplay();
             }
@@ -1322,6 +1412,7 @@
                         item.calculatedPrice = newPrice;
                         updatedCount++;
                     }
+                    item.price = newPrice;
                     item.pricingStrategy = activePricingStrategy;
                     item.pricingNeedsReview = needsPricingReview(item);
                     item.pricingReviewReason = item.pricingNeedsReview
@@ -1361,10 +1452,10 @@
         }
 
         function removeCardFromInventory(cardName, finish) {
-            const cleanName = cardName.replace(/[^a-zA-Z0-9]/g, '');
+            const selectedCard = getCurrentlySelectedCard(cardName);
             
             if (!selectedCard) {
-                showMessage('No card selected', 'warning');
+                showMessage('Please select a card version first', 'warning');
                 return;
             }
 
@@ -1372,8 +1463,8 @@
             const matchingItems = inventory.filter(item => 
                 item.name === selectedCard.name && 
                 item.set === selectedCard.set_name && 
-                item.collector_number === selectedCard.collector_number && 
-                item.finish === finish &&
+                item.number === selectedCard.collector_number && 
+                (finish === 'foil' ? isFoilCondition(item.condition) : !isFoilCondition(item.condition)) &&
                 item.quantity > 0
             );
 
@@ -1615,7 +1706,7 @@
                 'TCG Low Price': roundPrice(item.lowPrice || 0).toFixed(2),
                 'Total Quantity': item.quantity,
                 'Add to Quantity': item.addToQuantity || 0,
-                'TCG Marketplace Price': roundPrice(item.calculatedPrice || item.originalPrice || item.price).toFixed(2),
+                'TCG Marketplace Price': getListingPrice(item).toFixed(2),
                 'Photo URL': item.photoUrl || ''
             }));
 

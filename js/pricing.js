@@ -7,6 +7,8 @@
         root.calculateTCGPrice = pricing.calculateTCGPrice;
         root.roundPrice = pricing.roundPrice;
         root.needsPricingReview = pricing.needsPricingReview;
+        root.isExcludedCard = pricing.isExcludedCard;
+        root.EXCLUDED_CARDS = pricing.EXCLUDED_CARDS;
         root.MINIMUM_PRICE = pricing.MINIMUM_PRICE;
         root.DEFAULT_PRICING_STRATEGY = pricing.DEFAULT_PRICING_STRATEGY;
         root.PRICING_STRATEGIES = pricing.PRICING_STRATEGIES;
@@ -42,7 +44,16 @@
         'Stomping Ground',
         'Breeding Pool',
         'Blood Crypt',
-        'Hallowed Fountain'
+        'Hallowed Fountain', 
+        "Heroic Intervention", 
+        "T'Challa's Protection - Teferi's Protection (Borderless)",
+        "Seize the Day",
+        "Steelshaper's Gift", 
+        "Simulacrum Synthesizer",
+        "Defense of he Heart",
+        "No Mercy",
+        "Primal Vigor",
+        "Show and Tell"
     ];
 
     function roundPrice(price) {
@@ -61,6 +72,13 @@
         return marketPrice >= MINIMUM_PRICE && lowPrice <= 0;
     }
 
+    function isExcludedCard(cardName) {
+        return EXCLUDED_CARDS.some(excludedName =>
+            cardName &&
+            cardName.toLowerCase().includes(excludedName.toLowerCase())
+        );
+    }
+
     function calculatePrice(item, strategyId = DEFAULT_PRICING_STRATEGY) {
         const marketPrice = Number(item.marketPrice || 0);
         const lowPrice = Number(item.lowPrice || 0);
@@ -70,12 +88,7 @@
 
         const estimatedShipping = Math.max(0, lowShipping - lowPrice);
 
-        const isExcludedCard = EXCLUDED_CARDS.some(excludedName =>
-            item.name &&
-            item.name.toLowerCase().includes(excludedName.toLowerCase())
-        );
-
-        if (isExcludedCard) {
+        if (isExcludedCard(item.name)) {
             return roundPrice(originalPrice);
         }
 
@@ -124,6 +137,7 @@
         calculateTCGPrice,
         roundPrice,
         needsPricingReview,
+        isExcludedCard,
         MINIMUM_PRICE,
         EXCLUDED_CARDS,
         DEFAULT_PRICING_STRATEGY,
