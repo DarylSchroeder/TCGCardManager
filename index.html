@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TCG Card Manager v2.1</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -185,7 +186,7 @@
                     <h1 class="mb-2"><i class="fas fa-cards-blank me-2"></i>TCG Card Manager v2</h1>
                     <p class="mb-0 opacity-75">Clean, modern card collection management</p>
                     <small class="text-muted">
-                        <i class="fas fa-clock me-1"></i>Published: <span id="publishTimestamp"></span>
+                        <i class="fas fa-clock me-1"></i>Published: <span id="publishTimestamp">Loading…</span>
                     </small>
                 </div>
                 <div class="col-md-4 text-end">
@@ -379,20 +380,36 @@
         let currentSortDirection = 'asc';
         let activePricingStrategy = DEFAULT_PRICING_STRATEGY;
 
+        async function loadPublishTimestamp() {
+            const publishTimestamp = document.getElementById('publishTimestamp');
+
+            try {
+                // The site is deployed from main, so this is the date of the commit being deployed.
+                const response = await fetch('https://api.github.com/repos/DarylSchroeder/TCGCardManager/commits/main');
+                if (!response.ok) {
+                    throw new Error(`GitHub API request failed: ${response.status}`);
+                }
+
+                const commit = await response.json();
+                const committedAt = new Date(commit.commit.committer.date);
+                publishTimestamp.textContent = committedAt.toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                });
+            } catch (error) {
+                console.warn('Unable to load deployment timestamp:', error);
+                publishTimestamp.textContent = 'Unavailable';
+            }
+        }
+
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
-            // Set local timestamp for debugging
-            const now = new Date();
-            const timestamp = now.toLocaleString('en-US', {
-                year: 'numeric',
-                month: '2-digit', 
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            });
-            document.getElementById('publishTimestamp').textContent = timestamp;
+            loadPublishTimestamp();
             
             // Add sorting event listeners
             document.querySelectorAll('.sortable').forEach(header => {
