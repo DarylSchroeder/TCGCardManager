@@ -69,6 +69,24 @@
             box-shadow: var(--card-shadow);
         }
 
+        .search-result-card {
+            border: 1px solid #e2e8f0;
+        }
+
+        .search-result-image {
+            width: 68px;
+            max-height: 96px;
+            object-fit: cover;
+            border-radius: 4px;
+            cursor: pointer;
+            flex: 0 0 auto;
+        }
+
+        .search-result-quantity {
+            width: 4.5rem;
+            flex: 0 0 4.5rem;
+        }
+
         .search-panel-toggle {
             font-size: 1.25rem;
             text-align: left;
@@ -263,7 +281,7 @@
                             <div class="input-group mb-3">
                                 <input type="text" id="searchInput" class="form-control form-control-lg"
                                        placeholder="Enter card name..." onkeypress="handleSearchKeypress(event)">
-                                <button class="btn btn-primary btn-lg" onclick="searchCards()">
+                                <button class="btn btn-primary btn-lg" onclick="searchCards()" tabindex="-1">
                                     <i class="fas fa-search"></i>
                                 </button>
                             </div>
@@ -624,6 +642,12 @@
             }
         }
 
+        function handleSearchResultEnter(event, cardName) {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            addCardToInventory(cardName, event.shiftKey ? 'foil' : 'normal');
+        }
+
         async function searchCards() {
             const query = document.getElementById('searchInput').value.trim();
             if (!query) {
@@ -673,6 +697,7 @@
 
         function displaySearchResults(results) {
             const container = document.getElementById('searchResults');
+            container.className = '';
             
             // Filter to only paper cards
             const paperCards = results.filter(card => 
@@ -689,6 +714,8 @@
                 `;
                 return;
             }
+
+            container.className = 'row row-cols-1 row-cols-md-2 row-cols-xxl-3 g-3';
 
             // Group cards by name to show different sets
             const cardGroups = {};
@@ -721,69 +748,54 @@
 
                 // Use utility functions for collector number logic
                 const defaultSetCards = setGroups[defaultCard.set_name];
-                const collectorGroups = deduplicateFoilVariants(defaultSetCards);
-                const representativeCard = getRepresentativeCard(collectorGroups[Object.keys(collectorGroups)[0]]);
 
+                const imageUrl = defaultCard.image_uris?.small || defaultCard.card_faces?.[0]?.image_uris?.small || '';
                 return `
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <div class="row align-items-center">
-                                <div class="col-2">
-                                    <img src="${defaultCard.image_uris?.small || ''}" alt="${cardName}" 
-                                         style="width: 80px; height: auto; border-radius: 4px; cursor: pointer;"
-                                         onclick="showLargeCardView('${defaultCard.id}')"
+                    <div class="col">
+                        <div class="card h-100 search-result-card">
+                            <div class="card-body">
+                                <div class="d-flex gap-3 align-items-start mb-3">
+                                    <img src="${imageUrl}" alt="${cardName}"
+                                         class="search-result-image" onclick="showLargeCardView('${defaultCard.id}')"
                                          id="card-image-${cleanName}">
+                                    <div class="min-w-0">
+                                        <h6 class="mb-1">${cardName}</h6>
+                                        <small class="text-muted">${defaultCard.type_line}</small>
+                                    </div>
                                 </div>
-                                <div class="col-3">
-                                    <h6 class="mb-1">${cardName}</h6>
-                                    <small class="text-muted">${defaultCard.type_line}</small>
-                                </div>
-                                <div class="col-2">
-                                    <small class="text-muted d-block">Set</small>
-                                    <select class="form-select form-select-sm" id="set-${cleanName}" onchange="updateCardVersion('${cardName}', this.value)">
-                                        ${generateSetDropdown(cardName, setGroups)}
-                                    </select>
-                                </div>
-                                <div class="col-2">
-                                    <div id="collector-container-${cleanName}">
-                                        <small class="text-muted d-block">Collector #</small>
+                                <div class="row g-2 mb-2">
+                                    <div class="col-7">
+                                        <label for="set-${cleanName}" class="form-label small mb-1">Set</label>
+                                        <select class="form-select form-select-sm" id="set-${cleanName}"
+                                                onchange="updateCardVersion('${cardName}', this.value)"
+                                                onkeydown="handleSearchResultEnter(event, '${cardName}')">
+                                            ${generateSetDropdown(cardName, setGroups)}
+                                        </select>
+                                    </div>
+                                    <div class="col-5" id="collector-container-${cleanName}">
+                                        <label for="collector-${cleanName}" class="form-label small mb-1">Collector #</label>
                                         ${generateCollectorNumberDropdown(cardName, defaultSetCards, cleanName)}
                                     </div>
                                 </div>
-                                <div class="col-3">
-                                    <div class="d-flex align-items-center gap-2">
-                                        <div class="text-center">
-                                            <select class="form-select form-select-sm condition-select mb-1" id="condition-${cleanName}">
-                                                <option value="Near Mint">Near Mint</option>
-                                                <option value="Lightly Played">Lightly Played</option>
-                                                <option value="Moderately Played">Moderately Played</option>
-                                                <option value="Heavily Played">Heavily Played</option>
-                                            </select>
-                                        </div>
-                                        <div class="text-center">
-                                            <div class="small mb-1">Foil: <span id="foil-qty-${cleanName}">${getInventoryQuantity(cardName, 'foil', defaultCard.set_name, defaultCard.collector_number)}</span></div>
-                                            <div class="btn-group" role="group">
-                                                <button class="btn btn-sm btn-outline-danger" onclick="removeCardFromInventory('${cardName}', 'foil')" title="Remove foil">
-                                                    <i class="fas fa-minus"></i>
-                                                </button>
-                                                <button class="btn btn-sm btn-outline-warning" onclick="addCardToInventory('${cardName}', 'foil')" title="Add foil">
-                                                    <i class="fas fa-star"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div class="text-center">
-                                            <div class="small mb-1">Normal: <span id="normal-qty-${cleanName}">${getInventoryQuantity(cardName, 'normal', defaultCard.set_name, defaultCard.collector_number)}</span></div>
-                                            <div class="btn-group" role="group">
-                                                <button class="btn btn-sm btn-outline-danger" onclick="removeCardFromInventory('${cardName}', 'normal')" title="Remove normal">
-                                                    <i class="fas fa-minus"></i>
-                                                </button>
-                                                <button class="btn btn-sm btn-outline-primary" onclick="addCardToInventory('${cardName}', 'normal')" title="Add normal">
-                                                    <i class="fas fa-plus"></i>
-                                                </button>
-                                            </div>
-                                        </div>
+                                <div class="d-flex align-items-end gap-2 mb-2">
+                                    <div class="search-result-quantity">
+                                        <label for="quantity-${cleanName}" class="form-label small mb-1">Qty</label>
+                                        <input type="number" id="quantity-${cleanName}" class="form-control form-control-sm"
+                                               value="1" min="1" step="1" inputmode="numeric"
+                                               aria-label="Quantity to add for ${cardName}"
+                                               onkeydown="handleSearchResultEnter(event, '${cardName}')">
                                     </div>
+                                    <button class="btn btn-outline-primary btn-sm flex-fill" onclick="addCardToInventory('${cardName}', 'normal')">Add Nonfoil</button>
+                                    <button class="btn btn-outline-warning btn-sm flex-fill" onclick="addCardToInventory('${cardName}', 'foil')">Add Foil</button>
                                 </div>
+                                <small class="text-muted d-block mb-2">Enter adds nonfoil · Shift+Enter adds foil</small>
+                                <label for="condition-${cleanName}" class="form-label small mb-1">Condition</label>
+                                <select class="form-select form-select-sm condition-select" id="condition-${cleanName}">
+                                    <option value="Near Mint">Near Mint</option>
+                                    <option value="Lightly Played">Lightly Played</option>
+                                    <option value="Moderately Played">Moderately Played</option>
+                                    <option value="Heavily Played">Heavily Played</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -942,20 +954,6 @@
         function generateCollectorNumberDropdown(cardName, setCards, cleanName) {
             const collectorGroups = deduplicateFoilVariants(setCards);
             const uniqueCollectorNumbers = Object.keys(collectorGroups);
-            const hasMultipleCollectorNumbers = uniqueCollectorNumbers.length > 1;
-            
-            if (!hasMultipleCollectorNumbers) {
-                // Single collector number - show as span
-                const representativeCard = getRepresentativeCard(collectorGroups[uniqueCollectorNumbers[0]]);
-                const baseNumber = getBaseCollectorNumber(representativeCard.collector_number);
-                const hasInventory = hasInventoryForCard(cardName, representativeCard.set_name, representativeCard.collector_number);
-                const count = getInventoryCountForCard(cardName, representativeCard.set_name, representativeCard.collector_number);
-                const displayText = hasInventory ? `${baseNumber || 'N/A'} ✓ (${count})` : (baseNumber || 'N/A');
-                
-                return `<span id="collector-span-${cleanName}" ${hasInventory ? 'style="color: #155724; font-weight: bold;"' : ''}>${displayText}</span>`;
-            }
-            
-            // Multiple collector numbers - show as dropdown
             const options = uniqueCollectorNumbers.map(baseNumber => {
                 const repCard = getRepresentativeCard(collectorGroups[baseNumber]);
                 const hasInventory = hasInventoryForCard(cardName, repCard.set_name, repCard.collector_number);
@@ -966,8 +964,10 @@
             }).join('');
             
             return `
-                <small class="text-muted d-block">Collector #</small>
-                <select class="form-select form-select-sm" id="collector-${cleanName}" onchange="updateCollectorNumber('${cardName}', this.value)">
+                <select class="form-select form-select-sm" id="collector-${cleanName}"
+                        onchange="updateCollectorNumber('${cardName}', this.value)"
+                        tabindex="${uniqueCollectorNumbers.length === 1 ? '-1' : '0'}"
+                        onkeydown="handleSearchResultEnter(event, '${cardName}')">
                     ${options}
                 </select>
             `;
@@ -1012,8 +1012,9 @@
             
             // Update card image
             const imgElement = document.getElementById(`card-image-${cleanName}`);
-            if (imgElement && card.image_uris?.small) {
-                imgElement.src = card.image_uris.small;
+            const cardImage = card.image_uris?.small || card.card_faces?.[0]?.image_uris?.small;
+            if (imgElement && cardImage) {
+                imgElement.src = cardImage;
                 imgElement.onclick = () => showLargeCardView(card.id);
             }
             
@@ -1041,8 +1042,9 @@
             
             // Update card image
             const imgElement = document.getElementById(`card-image-${cleanName}`);
-            if (imgElement && card.image_uris?.small) {
-                imgElement.src = card.image_uris.small;
+            const cardImage = card.image_uris?.small || card.card_faces?.[0]?.image_uris?.small;
+            if (imgElement && cardImage) {
+                imgElement.src = cardImage;
                 imgElement.onclick = () => showLargeCardView(card.id);
             }
             
@@ -1099,8 +1101,16 @@
             });
         }
 
-        async function addCardToInventory(cardName, finish) {
+        async function addCardToInventory(cardName, finish, requestedQuantity = null) {
             const cleanName = cardName.replace(/[^a-zA-Z0-9]/g, '');
+            const quantityInput = document.getElementById(`quantity-${cleanName}`);
+            const rawQuantity = requestedQuantity ?? quantityInput?.value ?? 1;
+            const quantityToAdd = Number(rawQuantity);
+            if (!Number.isInteger(quantityToAdd) || quantityToAdd < 1) {
+                showMessage('Quantity must be a whole number greater than zero', 'warning');
+                quantityInput?.focus();
+                return;
+            }
             
             // Get the currently selected card
             let selectedCard;
@@ -1135,8 +1145,8 @@
             );
 
             if (existingItem) {
-                existingItem.quantity += 1;
-                existingItem.addToQuantity = (Number(existingItem.addToQuantity) || 0) + 1;
+                existingItem.quantity += quantityToAdd;
+                existingItem.addToQuantity = (Number(existingItem.addToQuantity) || 0) + quantityToAdd;
             } else {
                 // Try to find pricing data for this card
                 const pricingData = await findCardPricing(
@@ -1193,7 +1203,7 @@
                     identityName: selectedCard.name,
                     set: selectedCard.set_name,
                     condition: condition,
-                    quantity: 1,
+                    quantity: quantityToAdd,
                     price: calculatedPrice,
                     originalPrice: calculatedPrice,
                     calculatedPrice: calculatedPrice,
@@ -1220,7 +1230,7 @@
                     productLine: 'Magic',
                     // TCGplayer's My Pricing CSV leaves Title blank; Product Name carries the card name.
                     title: '',
-                    addToQuantity: 1,
+                    addToQuantity: quantityToAdd,
                     photoUrl: selectedCard.image_uris?.normal || selectedCard.image_uris?.large || ''
                 };
                 inventory.push(inventoryItem);
@@ -1232,7 +1242,11 @@
             // Update the quantity display in search results for this specific card name
             updateQuantityDisplays(cardName);
 
-            showMessage(`Added 1x ${selectedCard.name} (${selectedCard.set_name} #${selectedCard.collector_number}, ${condition}) to inventory`, 'success');
+            showMessage(`Added ${quantityToAdd}x ${selectedCard.name} (${selectedCard.set_name} #${selectedCard.collector_number}, ${condition}) to inventory`, 'success');
+            if (quantityInput) quantityInput.value = '1';
+            const searchInput = document.getElementById('searchInput');
+            searchInput?.focus({ preventScroll: true });
+            searchInput?.select();
         }
 
         function getScryfallMarketPrice(card, finish) {
