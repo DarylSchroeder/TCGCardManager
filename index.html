@@ -311,6 +311,14 @@
                             </select>
                             <span class="text-muted small">View filter only; CSV export includes all cards.</span>
                         </div>
+                        <div class="d-flex flex-wrap justify-content-end align-items-center gap-2 px-3 pt-2">
+                            <label for="inventoryJumpInput" class="form-label mb-0 small">Jump to name</label>
+                            <input type="search" id="inventoryJumpInput" class="form-control form-control-sm"
+                                   style="width: 12rem" placeholder="e.g. Sol Ring" aria-label="Jump to card name"
+                                   onkeydown="if (event.key === 'Enter') jumpToInventoryName()">
+                            <button class="btn btn-sm btn-outline-primary" type="button" onclick="jumpToInventoryName()">Go</button>
+                            <span class="text-muted small">Searches the current tab alphabetically.</span>
+                        </div>
                         <ul class="nav nav-tabs px-3 pt-3" id="inventoryTabs" role="tablist">
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link active" id="inventory-main-tab" data-bs-toggle="tab"
@@ -801,7 +809,7 @@
             
             // Get all items with matching name and positive quantity
             const allNameMatches = inventory.filter(item => 
-                item.name.toLowerCase() === cardName.toLowerCase() && item.quantity > 0
+                String(item.identityName || item.name).toLowerCase() === cardName.toLowerCase() && item.quantity > 0
             );
             
             if (allNameMatches.length === 0) {
@@ -1120,7 +1128,7 @@
             
             // Check if item already exists (same name, set, collector number, and condition)
             const existingItem = inventory.find(i => 
-                i.name === selectedCard.name && 
+                (i.identityName || i.name) === selectedCard.name &&
                 i.set === selectedCard.set_name && 
                 i.number === selectedCard.collector_number &&
                 i.condition === condition
@@ -1171,6 +1179,7 @@
                         originalPrice
                     }, activePricingStrategy)
                     : originalPrice;
+                const displayName = pricingData?.productName || selectedCard.name;
 
                 if (marketPrice > 0) {
                     console.log(`💰 Added ${selectedCard.name} (${condition}) using ${pricingData?.marketPrice > 0 ? 'TCGplayer' : 'Scryfall'} Market $${marketPrice}; listing $${calculatedPrice}`);
@@ -1180,7 +1189,8 @@
                 
                 const inventoryItem = {
                     id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-                    name: selectedCard.name,
+                    name: displayName,
+                    identityName: selectedCard.name,
                     set: selectedCard.set_name,
                     condition: condition,
                     quantity: 1,
@@ -1351,11 +1361,13 @@
                 }
 
                 // Put data-quality warnings first regardless of the selected sort order.
-                const reviewDifference = Number(Boolean(b.pricingNeedsReview)) - Number(Boolean(a.pricingNeedsReview));
-                if (reviewDifference !== 0) return reviewDifference;
+                if (field !== 'name') {
+                    const reviewDifference = Number(Boolean(b.pricingNeedsReview)) - Number(Boolean(a.pricingNeedsReview));
+                    if (reviewDifference !== 0) return reviewDifference;
+                }
 
-                let aVal = a[field];
-                let bVal = b[field];
+                let aVal = field === 'name' ? (a.identityName || a.name) : a[field];
+                let bVal = field === 'name' ? (b.identityName || b.name) : b[field];
                 
                 // Handle special cases
                 if (field === 'foil') {
@@ -1414,8 +1426,48 @@
             });
         }
 
+        function jumpToInventoryName() {
+            const input = document.getElementById('inventoryJumpInput');
+            const query = String(input?.value || '').trim().toLowerCase();
+            if (!query) {
+                input?.focus();
+                return;
+            }
+
+            const manualReviewActive = document.getElementById('inventory-excluded-pane')?.classList.contains('active');
+            const activeTbody = document.getElementById(manualReviewActive ? 'manualReviewTableBody' : 'inventoryTableBody');
+            const threshold = Number(document.getElementById('inventoryPriceThreshold')?.value || 0);
+            const candidates = inventory
+                .filter(item => manualReviewActive ? isManualReviewItem(item) : !isManualReviewItem(item))
+                .filter(item => threshold <= 0 || getListingPrice(item) >= threshold)
+                .sort((a, b) => {
+                    const aName = String(a.identityName || a.name).toLowerCase();
+                    const bName = String(b.identityName || b.name).toLowerCase();
+                    return aName < bName ? -1 : aName > bName ? 1 : 0;
+                });
+
+            currentSortField = 'name';
+            currentSortDirection = 'asc';
+            updateInventoryDisplay();
+            updateSortIcons();
+
+            const target = candidates.find(item => String(item.identityName || item.name).toLowerCase().startsWith(query)) ||
+                candidates.find(item => String(item.name).toLowerCase().startsWith(query)) ||
+                candidates.find(item => String(item.identityName || item.name).toLowerCase() >= query);
+            if (!target) {
+                showMessage(`No card at or after “${input.value.trim()}” in this tab.`, 'info');
+                return;
+            }
+
+            const row = activeTbody?.querySelector(`[data-inventory-id="${CSS.escape(String(target.id))}"]`);
+            if (!row) return;
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            row.classList.add('table-primary');
+            window.setTimeout(() => row.classList.remove('table-primary'), 1600);
+        }
+
         function isManualReviewItem(item) {
-            const isNamedExclusion = typeof isExcludedCard === 'function' && isExcludedCard(item.name);
+            const isNamedExclusion = typeof isExcludedCard === 'function' && isExcludedCard(item.identityName || item.name);
             const isExpensive = Number(item.marketPrice || 0) > 30 || Number(item.lowPrice || 0) > 30;
             const currentPrice = getListingPrice(item);
             const marketPrice = Number(item.marketPrice || 0);
@@ -1481,7 +1533,7 @@
                 ].filter(Boolean).join(' ');
 
                 return `
-                    <tr class="${rowClasses}">
+                    <tr class="${rowClasses}" data-inventory-id="${item.id}">
                         <td>
                             ${item.name}
                             ${isManualReviewItem(item) ? '<span class="badge bg-info text-dark ms-2">Manual Review</span>' : ''}
@@ -1780,7 +1832,7 @@
 
             // Find matching inventory item to remove
             const matchingItems = inventory.filter(item => 
-                item.name === selectedCard.name && 
+                (item.identityName || item.name) === selectedCard.name &&
                 item.set === selectedCard.set_name && 
                 item.number === selectedCard.collector_number && 
                 (finish === 'foil' ? isFoilCondition(item.condition) : !isFoilCondition(item.condition)) &&
@@ -1846,6 +1898,23 @@
             modal.show();
         }
 
+        function getInventoryDisplayName(productName, setName) {
+            const originalName = String(productName || '').trim();
+            if (String(setName || '').trim().toLowerCase() !== 'final fantasy: through the ages') {
+                return originalName;
+            }
+
+            // TCGplayer prefixes this set's canonical Magic card names with the
+            // Final Fantasy character's alternate name (e.g. "Squall - Danitha").
+            const alternateNamePattern = /^.+?\s-\s(.+)$/;
+            const match = originalName.match(alternateNamePattern);
+            if (!match) return originalName;
+
+            return match[1]
+                .replace(/\s+\((?:Showcase|Borderless|Extended Art|Full Art)\)$/i, '')
+                .trim() || originalName;
+        }
+
         function processImport() {
             const fileInput = document.getElementById('csvFile');
             const file = fileInput.files[0];
@@ -1879,8 +1948,10 @@
                             
                             if (isTCGFormat) {
                                 // TCG Export Format - capture ALL data for round-trip compatibility
-                                name = row['Product Name'] || row['Title'] || row['name'];
+                                const tcgProductName = row['Product Name'] || row['Title'] || row['name'];
                                 set = row['Set Name'] || row['set'];
+                                const identityName = getInventoryDisplayName(tcgProductName, set);
+                                name = tcgProductName || identityName;
                                 condition = row['Condition'] || 'Near Mint';
                                 quantity = parseInt(row['Total Quantity'] || row['quantity'] || 0);
                                 price = roundPrice(row['TCG Marketplace Price'] || row['price'] || 0);
@@ -1901,6 +1972,7 @@
                                     id: Date.now().toString() + '_' + index,
                                     cardId: 'imported_' + index,
                                     name: name,
+                                    identityName: identityName,
                                     set: set || 'Unknown Set',
                                     condition: condition,
                                     quantity: quantity,
@@ -1918,8 +1990,12 @@
                                     // Store ALL original TCG data for export
                                     tcgplayerId: row['TCGplayer Id'] || '',
                                     productLine: row['Product Line'] || 'Magic',
+                                    tcgProductLine: row['Product Line'] || 'Magic',
+                                    tcgProductName: tcgProductName || '',
+                                    tcgSetName: set || '',
                                     title: row['Title'] || '',
                                     number: row['Number'] || '',
+                                    tcgNumber: row['Number'] || '',
                                     rarity: row['Rarity'] || '',
                                     tcgDirectLow: row['TCG Direct Low'] || '',
                                     addToQuantity: parseInt(row['Add to Quantity'] || 0),

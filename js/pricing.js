@@ -106,7 +106,7 @@
 
         const estimatedShipping = Math.max(0, lowShipping - lowPrice);
 
-        if (isExcludedCard(item.name)) {
+        if (isExcludedCard(item.identityName || item.name)) {
             return roundPrice(originalPrice);
         }
 

@@ -16,7 +16,8 @@ The browser inventory uses objects with these fields (some are optional by impor
 | --- | --- |
 | `id` | Local unique row id. |
 | `cardId` | Scryfall id or import placeholder. |
-| `name`, `set`, `number`, `rarity` | Card identity/display metadata. |
+| `name`, `set`, `number`, `rarity` | Visible product/card name and printing metadata. Imported TCGplayer product names are preserved for display/export. |
+| `identityName` | Canonical card identity used for alphabetical sorting, inventory matching, and name-based pricing exclusions. Usually matches `name`. |
 | `condition` | TCG condition string; may include foil/language suffixes. |
 | `quantity` | Number of owned copies. |
 | `addToQuantity` | Quantity adjustment delta sent to TCGplayer. Search Cards adds increment both local `quantity` and this delta. |
@@ -33,6 +34,8 @@ The browser inventory uses objects with these fields (some are optional by impor
 When adding a card from Search Cards, a matching imported TCGplayer row supplies its pricing fields. If its Market Price is missing, the app falls back to the Scryfall card object's daily finish-specific price (`prices.usd`, `prices.usd_foil`, or `prices.usd_etched`). With no TCG Low, the card starts at that market baseline (at least `$0.50`) and is flagged for pricing review; low-based repricing preserves that baseline until TCG Low is available. If neither source provides a market price, the card is added at `$0`.
 
 Scryfall's `tcgplayer_id` is a product ID. TCGplayer seller CSV's `TCGplayer Id` field is a SKU ID that identifies the specific finish and condition. They are different identifier types even though their names are similar. Import the custom TCGplayer catalog CSV from the Search Cards panel to resolve the correct SKU and canonical product fields by set, collector number, name, and condition/finish. A Web Worker streams the CSV in chunks; only compact lookup and pricing fields are stored in IndexedDB. Search Cards reads matching rows from IndexedDB instead of loading the full catalog into page memory. Until a SKU resolves, the row shows a Review indicator and export is blocked to avoid submitting a product ID in the SKU field. Scryfall remains the fallback source for daily market price. For TCGplayer CSV output, keep `Title` blank and use TCGplayer rarity codes (`C`, `U`, `R`, `M`, etc.).
+
+For TCGplayer imports from `FINAL FANTASY: Through the Ages`, the canonical identity used for sorting and matching comes from the suffix of TCGplayer's alternate-name product title (for example, `Squall Leonhart - Danitha Capashen, Paragon (Showcase)` sorts as `Danitha Capashen, Paragon`). The visible name and original TCGplayer Product Name are retained and exported unchanged.
 
 Inventory is session-only: it is cleared on page startup and is not saved to localStorage, so import the current inventory CSV after each reload. The selected strategy is stored in `tcg_pricing_strategy`; the compact TCGplayer price catalog is stored in IndexedDB and persists across reloads.
 
