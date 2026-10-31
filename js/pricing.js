@@ -114,6 +114,12 @@
             return roundPrice(originalPrice);
         }
 
+        // Without a TCG Low value, keep the supplied baseline rather than letting
+        // a low-based strategy push the card to its minimum price by mistake.
+        if (marketPrice >= MINIMUM_PRICE && lowPrice <= 0) {
+            return roundPrice(originalPrice);
+        }
+
         if (
             strategy.id === 'marketGuardedShippedLow' &&
             (marketPrice <= 0 || lowPrice <= 0 || lowShipping <= 0)

@@ -13,8 +13,9 @@ Order of rules:
 1. Excluded card name: return `originalPrice`.
 2. Market or low price above `$30`: return `originalPrice`. A card enters Manual Review for this reason only when its current listing price is above Market.
 3. For `marketGuardedShippedLow`, missing or zero Market, Low, or Low With Shipping returns `originalPrice`.
-4. Both market and low are below `$0.50`: return the `$0.50` minimum.
-5. Otherwise apply the selected strategy, with a `$0.50` floor.
+4. Market at least `$0.50` with missing TCG Low returns `originalPrice`; there is no safe low-based target.
+5. Both market and low are below `$0.50`: return the `$0.50` minimum.
+6. Otherwise apply the selected strategy, with a `$0.50` floor.
 
 The named exclusions are in `EXCLUDED_CARDS` in `js/pricing.js` and matched as case-insensitive substrings. Current names include Godless Shrine, Cavern of Souls, all ten shock lands, Heroic Intervention, T'Challa's Protection - Teferi's Protection (Borderless), Seize the Day, Steelshaper's Gift, Simulacrum Synthesizer, Defense of he Heart, No Mercy, Primal Vigor, and Show and Tell. Preserve spelling as implemented unless intentionally correcting the list.
 

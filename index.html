@@ -246,6 +246,20 @@
                     </button>
                     <div class="collapse" id="searchCardsPanel">
                         <div class="pt-3">
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                                <div class="small text-muted">
+                                    <div id="priceCatalogStatus">No TCGplayer catalog loaded; Search Cards can only use Scryfall price data.</div>
+                                    <div class="mt-1">To create the catalog: go to <a href="https://store.tcgplayer.com/admin/pricing" target="_blank" rel="noopener noreferrer">Seller Portal Pricing</a> → <strong>Export Filtered CSV</strong> → set <strong>Conditions</strong> to Near Mint (or the conditions you use). Filtering conditions keeps the export smaller.</div>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="importPrices()" title="Import the TCGplayer custom pricing export with SKU IDs">
+                                        <i class="fas fa-file-import me-1" aria-hidden="true"></i>Import Price Catalog
+                                    </button>
+                                    <button class="btn btn-outline-danger btn-sm" type="button" onclick="clearPriceData()" title="Remove the locally stored TCGplayer price catalog">
+                                        <i class="fas fa-trash-alt me-1" aria-hidden="true"></i>Clear Pricing Data
+                                    </button>
+                                </div>
+                            </div>
                             <div class="input-group mb-3">
                                 <input type="text" id="searchInput" class="form-control form-control-lg"
                                        placeholder="Enter card name..." onkeypress="handleSearchKeypress(event)">
@@ -457,7 +471,7 @@
         let inventory = [];
         let selectedCard = null;
         let searchResults = [];
-        let priceData = []; // Store imported pricing data
+        let priceCatalogCount = 0;
         let currentSortField = 'name';
         let currentSortDirection = 'asc';
         let activePricingStrategy = DEFAULT_PRICING_STRATEGY;
@@ -502,7 +516,7 @@
             });
             
             loadInventoryFromStorage();
-            loadPriceData(); // Load pricing data on startup
+            loadPriceData(); // Check whether a local SKU catalog is available
             loadPricingStrategy();
             updateInventoryDisplay();
             updateSortIcons(); // Initialize sort icons
@@ -1077,7 +1091,7 @@
             });
         }
 
-        function addCardToInventory(cardName, finish) {
+        async function addCardToInventory(cardName, finish) {
             const cleanName = cardName.replace(/[^a-zA-Z0-9]/g, '');
             
             // Get the currently selected card
@@ -1114,36 +1128,54 @@
 
             if (existingItem) {
                 existingItem.quantity += 1;
-                existingItem.addToQuantity = existingItem.addToQuantity || 0;
+                existingItem.addToQuantity = (Number(existingItem.addToQuantity) || 0) + 1;
             } else {
                 // Try to find pricing data for this card
-                const pricingData = findCardPricing(selectedCard.name, selectedCard.set_name, condition);
+                const pricingData = await findCardPricing(
+                    selectedCard.name,
+                    selectedCard.set_name,
+                    condition,
+                    selectedCard.collector_number
+                );
+                const scryfallMarketPrice = getScryfallMarketPrice(selectedCard, finish);
                 
-                let calculatedPrice = 0;
-                let marketPrice = 0;
+                let marketPrice = pricingData ? pricingData.marketPrice : 0;
                 let lowPrice = 0;
                 let lowShipping = 0;
+                let tcgDirectLow = '';
                 
                 if (pricingData) {
-                    marketPrice = pricingData.marketPrice;
                     lowPrice = pricingData.lowPrice;
                     lowShipping = pricingData.lowShipping;
-                    
-                    // Apply TCG pricing rules using the existing function
-                    const priceItem = {
+                    tcgDirectLow = pricingData.tcgDirectLow;
+                }
+
+                // Scryfall provides a daily, finish-specific market estimate. Use it
+                // when the imported TCGplayer price data has no market value.
+                if (marketPrice <= 0 && scryfallMarketPrice > 0) {
+                    marketPrice = scryfallMarketPrice;
+                }
+
+                // A missing TCG Low means low-based strategies do not have enough
+                // data to reprice safely. Start at market (respecting the app floor)
+                // and let the existing missing-low review indicator flag the row.
+                const originalPrice = marketPrice > 0
+                    ? Math.max(MINIMUM_PRICE, marketPrice)
+                    : 0;
+                const calculatedPrice = lowPrice > 0
+                    ? calculatePrice({
                         name: selectedCard.name,
-                        marketPrice: marketPrice,
-                        lowPrice: lowPrice,
-                        lowShipping: lowShipping,
-                        // A newly discovered card has no prior listing price; market is the safe baseline
-                        // for guardrails that preserve an original price.
-                        originalPrice: marketPrice
-                    };
-                    calculatedPrice = calculatePrice(priceItem, activePricingStrategy);
-                    
-                    console.log(`💰 Found pricing for ${selectedCard.name} (${condition}): Market $${marketPrice}, Calculated $${calculatedPrice}`);
+                        marketPrice,
+                        lowPrice,
+                        lowShipping,
+                        originalPrice
+                    }, activePricingStrategy)
+                    : originalPrice;
+
+                if (marketPrice > 0) {
+                    console.log(`💰 Added ${selectedCard.name} (${condition}) using ${pricingData?.marketPrice > 0 ? 'TCGplayer' : 'Scryfall'} Market $${marketPrice}; listing $${calculatedPrice}`);
                 } else {
-                    console.log(`⚠️ No pricing data found for ${selectedCard.name} (${condition})`);
+                    console.log(`⚠️ No market price found for ${selectedCard.name} (${condition})`);
                 }
                 
                 const inventoryItem = {
@@ -1163,14 +1195,22 @@
                     marketPrice: marketPrice,
                     lowPrice: lowPrice,
                     lowShipping: lowShipping,
-                    tcgDirectLow: pricingData ? pricingData.tcgDirectLow : '',
-                    rarity: selectedCard.rarity,
+                    tcgDirectLow: tcgDirectLow,
+                    rarity: pricingData?.rarity || getTCGPlayerRarity(selectedCard.rarity),
                     number: selectedCard.collector_number,
                     image: selectedCard.image_uris?.normal || selectedCard.image_uris?.large || '',
-                    tcgplayerId: selectedCard.tcgplayer_id || '',
+                    // TCGplayer seller CSVs require SKU IDs. Scryfall's tcgplayer_id
+                    // is a product ID, so never write it into the seller SKU column.
+                    tcgplayerId: pricingData?.tcgplayerId || '',
+                    tcgplayerProductId: selectedCard.tcgplayer_id || '',
+                    tcgProductName: pricingData?.productName || '',
+                    tcgSetName: pricingData?.setName || '',
+                    tcgNumber: pricingData?.number || '',
+                    tcgProductLine: pricingData?.productLine || 'Magic',
                     productLine: 'Magic',
-                    title: selectedCard.name,
-                    addToQuantity: 0,
+                    // TCGplayer's My Pricing CSV leaves Title blank; Product Name carries the card name.
+                    title: '',
+                    addToQuantity: 1,
                     photoUrl: selectedCard.image_uris?.normal || selectedCard.image_uris?.large || ''
                 };
                 inventory.push(inventoryItem);
@@ -1183,6 +1223,24 @@
             updateQuantityDisplays(cardName);
 
             showMessage(`Added 1x ${selectedCard.name} (${selectedCard.set_name} #${selectedCard.collector_number}, ${condition}) to inventory`, 'success');
+        }
+
+        function getScryfallMarketPrice(card, finish) {
+            const priceField = finish === 'foil' ? 'usd_foil' : finish === 'etched' ? 'usd_etched' : 'usd';
+            const price = Number.parseFloat(card?.prices?.[priceField]);
+            return Number.isFinite(price) && price > 0 ? roundPrice(price) : 0;
+        }
+
+        function getTCGPlayerRarity(rarity) {
+            const rarityCodes = {
+                common: 'C',
+                uncommon: 'U',
+                rare: 'R',
+                mythic: 'M',
+                special: 'S',
+                bonus: 'P'
+            };
+            return rarityCodes[String(rarity || '').toLowerCase()] || rarity || '';
         }
 
         function updateQuantityDisplays(cardName) {
@@ -1384,6 +1442,9 @@
 
             if (item.pricingNeedsReview) {
                 reasons.push(item.pricingReviewReason || 'TCG Low is missing; review this price before listing.');
+            }
+            if (!item.tcgplayerId) {
+                reasons.push('TCGplayer SKU is unresolved. Load a TCGplayer catalog CSV and match this printing and finish before exporting.');
             }
             if (typeof isBelowMarketGuardrail === 'function' && isBelowMarketGuardrail(item)) {
                 const allowedDiscount = Math.min(marketPrice * 0.05, 0.50);
@@ -1857,7 +1918,7 @@
                                     // Store ALL original TCG data for export
                                     tcgplayerId: row['TCGplayer Id'] || '',
                                     productLine: row['Product Line'] || 'Magic',
-                                    title: row['Title'] || name,
+                                    title: row['Title'] || '',
                                     number: row['Number'] || '',
                                     rarity: row['Rarity'] || '',
                                     tcgDirectLow: row['TCG Direct Low'] || '',
@@ -1931,14 +1992,25 @@
                 return;
             }
 
+            const unresolvedSkuItems = exportableInventory.filter(item => !item.tcgplayerId);
+            if (unresolvedSkuItems.length) {
+                const preview = unresolvedSkuItems.slice(0, 3).map(item => item.name).join(', ');
+                const more = unresolvedSkuItems.length > 3 ? ', …' : '';
+                showMessage(
+                    `${unresolvedSkuItems.length} card${unresolvedSkuItems.length === 1 ? '' : 's'} need a TCGplayer SKU before export: ${preview}${more}. Load the TCGplayer catalog CSV, then export again.`,
+                    'warning'
+                );
+                return;
+            }
+
             // Use TCG export format headers (same as imported CSV)
             const csvData = exportableInventory.map(item => ({
                 'TCGplayer Id': item.tcgplayerId || '',
-                'Product Line': item.productLine || 'Magic',
-                'Set Name': item.set,
-                'Product Name': item.name,
-                'Title': item.title || item.name,
-                'Number': item.number || '',
+                'Product Line': item.tcgProductLine || item.productLine || 'Magic',
+                'Set Name': item.tcgSetName || item.set,
+                'Product Name': item.tcgProductName || item.name,
+                'Title': item.title || '',
+                'Number': item.tcgNumber || item.number || '',
                 'Rarity': item.rarity || '',
                 'Condition': item.condition,
                 'TCG Market Price': roundPrice(item.marketPrice || 0).toFixed(2),
@@ -1976,114 +2048,295 @@
         }
 
         function importPrices() {
-            // Create file input for price data
+            // Select and stream the seller catalog into IndexedDB in the background.
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = '.csv';
             input.onchange = function(event) {
                 const file = event.target.files[0];
                 if (file) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        try {
-                            const csvData = e.target.result;
-                            const lines = csvData.split('\n');
-                            const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
-                            
-                            priceData = [];
-                            
-                            for (let i = 1; i < lines.length; i++) {
-                                const line = lines[i].trim();
-                                if (!line) continue;
-                                
-                                const values = parseCSVLine(line);
-                                if (values.length < headers.length) continue;
-                                
-                                const row = {};
-                                headers.forEach((header, index) => {
-                                    row[header] = values[index] || '';
-                                });
-                                
-                                // Only add rows with valid pricing data
-                                if (row['Product Name'] && row['TCG Market Price']) {
-                                    priceData.push(row);
-                                }
-                            }
-                            
-                            showMessage(`Successfully imported ${priceData.length} price entries`, 'success');
-                            console.log(`📊 Imported ${priceData.length} price entries`);
-                            
-                            // Store in localStorage for persistence
-                            try {
-                                localStorage.setItem('tcg_price_data', JSON.stringify(priceData));
-                            } catch (e) {
-                                console.warn('Could not save price data to localStorage:', e);
-                            }
-                            
-                        } catch (error) {
-                            console.error('Error importing price data:', error);
-                            showMessage('Error importing price data: ' + error.message, 'danger');
-                        }
-                    };
-                    reader.readAsText(file);
+                    importPriceCatalogFile(file);
                 }
             };
             input.click();
         }
 
-        // Load price data from localStorage on startup
-        function loadPriceData() {
+        const PRICE_CATALOG_DB = 'tcg-card-manager-price-catalog';
+        const PRICE_CATALOG_STORE = 'skus';
+        const PRICE_CATALOG_META_STORE = 'metadata';
+        const PRICE_CATALOG_META_ID = '__catalog_meta__';
+        let priceCatalogDbPromise;
+        let priceCatalogUpdatedAt = null;
+        let priceCatalogState = 'empty';
+
+        function openPriceCatalogDb() {
+            if (!('indexedDB' in window)) return Promise.reject(new Error('This browser does not support IndexedDB.'));
+            if (!priceCatalogDbPromise) {
+                priceCatalogDbPromise = new Promise((resolve, reject) => {
+                    const request = indexedDB.open(PRICE_CATALOG_DB, 2);
+                    request.onupgradeneeded = () => {
+                        const db = request.result;
+                        const store = db.objectStoreNames.contains(PRICE_CATALOG_STORE)
+                            ? request.transaction.objectStore(PRICE_CATALOG_STORE)
+                            : db.createObjectStore(PRICE_CATALOG_STORE, { keyPath: 'tcgplayerId' });
+                        if (!store.indexNames.contains('matchKey')) store.createIndex('matchKey', 'matchKey', { unique: false });
+                        if (!db.objectStoreNames.contains(PRICE_CATALOG_META_STORE)) {
+                            db.createObjectStore(PRICE_CATALOG_META_STORE, { keyPath: 'key' });
+                        }
+                    };
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error || new Error('Could not open the local price catalog.'));
+                });
+            }
+            return priceCatalogDbPromise;
+        }
+
+        function normalizeCatalogValue(value) {
+            return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        }
+
+        function normalizeCatalogNumber(value) {
+            return normalizeCatalogValue(value).replace(/^0+(?=\d)/, '');
+        }
+
+        function catalogMatchKey(setName, number, condition) {
+            return [normalizeCatalogValue(setName), normalizeCatalogNumber(number), normalizeCatalogValue(condition)].join('|');
+        }
+
+        async function writeCatalogBatch(rows, clearFirst) {
+            const db = await openPriceCatalogDb();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(PRICE_CATALOG_STORE, 'readwrite');
+                const store = tx.objectStore(PRICE_CATALOG_STORE);
+                if (clearFirst) store.clear();
+                rows.forEach(row => store.put(row));
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error || new Error('Could not save catalog rows.'));
+                tx.onabort = () => reject(tx.error || new Error('Catalog save was interrupted.'));
+            });
+        }
+
+        async function clearPriceCatalog() {
+            const db = await openPriceCatalogDb();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(PRICE_CATALOG_STORE, 'readwrite');
+                tx.objectStore(PRICE_CATALOG_STORE).clear();
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error || new Error('Could not clear the incomplete catalog.'));
+                tx.onabort = () => reject(tx.error || new Error('Could not clear the incomplete catalog.'));
+            });
+        }
+
+        async function clearPriceData() {
+            const importButton = document.querySelector('#searchCardsPanel button[onclick="importPrices()"]');
+            const clearButton = document.querySelector('#searchCardsPanel button[onclick="clearPriceData()"]');
+            if (importButton?.disabled) {
+                showMessage('Wait for the catalog import to finish before clearing pricing data.', 'warning');
+                return;
+            }
+
+            if (clearButton) clearButton.disabled = true;
             try {
-                const stored = localStorage.getItem('tcg_price_data');
-                if (stored) {
-                    priceData = JSON.parse(stored);
-                    console.log(`📊 Loaded ${priceData.length} price entries from localStorage`);
-                }
-            } catch (e) {
-                console.warn('Could not load price data from localStorage:', e);
-                priceData = [];
+                await clearPriceCatalog();
+                priceCatalogCount = 0;
+                priceCatalogUpdatedAt = null;
+                priceCatalogState = 'empty';
+                updatePriceCatalogStatus();
+                showMessage('Local TCGplayer price catalog and update time cleared. Inventory was not changed.', 'success');
+            } catch (error) {
+                showMessage(`Could not clear price catalog: ${error.message}`, 'danger');
+            } finally {
+                if (clearButton) clearButton.disabled = false;
             }
         }
 
-        // Find pricing data for a card
-        function findCardPricing(cardName, setName, condition) {
-            if (!priceData || priceData.length === 0) {
+        async function savePriceCatalogMetadata(metadata) {
+            const db = await openPriceCatalogDb();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(PRICE_CATALOG_STORE, 'readwrite');
+                tx.objectStore(PRICE_CATALOG_STORE).put({ tcgplayerId: PRICE_CATALOG_META_ID, ...metadata });
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error || new Error('Could not save catalog update time.'));
+                tx.onabort = () => reject(tx.error || new Error('Could not save catalog update time.'));
+            });
+        }
+
+        async function readPriceCatalogMetadata() {
+            const db = await openPriceCatalogDb();
+            return new Promise((resolve, reject) => {
+                const request = db.transaction(PRICE_CATALOG_STORE, 'readonly')
+                    .objectStore(PRICE_CATALOG_STORE).get(PRICE_CATALOG_META_ID);
+                request.onsuccess = () => resolve(request.result || null);
+                request.onerror = () => reject(request.error || new Error('Could not read catalog update time.'));
+            });
+        }
+
+        async function importPriceCatalogFile(file) {
+            const status = document.getElementById('priceCatalogStatus');
+            const button = document.querySelector('#searchCardsPanel button[onclick="importPrices()"]');
+            if (button) button.disabled = true;
+            if (status) status.textContent = 'Importing catalog in background… keep this page open until complete.';
+
+            try {
+                priceCatalogState = 'importing';
+                priceCatalogUpdatedAt = null;
+                await savePriceCatalogMetadata({ state: 'importing', startedAt: new Date().toISOString() });
+                const worker = new Worker('js/priceCatalogWorker.js');
+                let writeQueue = Promise.resolve();
+                let firstBatch = true;
+                worker.onmessage = async event => {
+                    const message = event.data || {};
+                    if (message.type === 'batch') {
+                        writeQueue = writeQueue.then(() => writeCatalogBatch(message.rows, firstBatch));
+                        firstBatch = false;
+                        priceCatalogCount = message.processed;
+                        if (status) status.textContent = `Importing catalog in background… ${message.processed.toLocaleString()} rows processed. Keep this page open until complete.`;
+                    } else if (message.type === 'error') {
+                        worker.terminate();
+                        await writeQueue.catch(() => {});
+                        await clearPriceCatalog().catch(console.warn);
+                        priceCatalogCount = 0;
+                        priceCatalogState = 'failed';
+                        await savePriceCatalogMetadata({ state: 'failed' }).catch(console.warn);
+                        if (button) button.disabled = false;
+                        if (status) status.textContent = 'Catalog import failed.';
+                        showMessage(`Could not import price catalog: ${message.message}`, 'danger');
+                    } else if (message.type === 'complete') {
+                        try {
+                            await writeQueue;
+                            priceCatalogCount = message.processed;
+                            priceCatalogUpdatedAt = new Date().toISOString();
+                            priceCatalogState = 'ready';
+                            await savePriceCatalogMetadata({ state: 'ready', updatedAt: priceCatalogUpdatedAt });
+                            updatePriceCatalogStatus();
+                            const resolvedCount = await resolvePendingTCGplayerSkus();
+                            saveInventoryToStorage();
+                            updatePriceCatalogStatus();
+                            updateInventoryDisplay();
+                            if (button) button.disabled = false;
+                            showMessage(`Imported ${priceCatalogCount.toLocaleString()} catalog rows; resolved ${resolvedCount} inventory SKU${resolvedCount === 1 ? '' : 's'}.`, 'success');
+                            worker.terminate();
+                        } catch (error) {
+                            priceCatalogState = 'failed';
+                            await savePriceCatalogMetadata({ state: 'failed' }).catch(console.warn);
+                            if (button) button.disabled = false;
+                            if (status) status.textContent = 'Catalog import failed while saving.';
+                            showMessage(`Could not save price catalog: ${error.message}`, 'danger');
+                            worker.terminate();
+                        }
+                    }
+                };
+                worker.onerror = async error => {
+                    worker.terminate();
+                    await writeQueue.catch(() => {});
+                    await clearPriceCatalog().catch(console.warn);
+                    priceCatalogCount = 0;
+                    priceCatalogState = 'failed';
+                    await savePriceCatalogMetadata({ state: 'failed' }).catch(console.warn);
+                    if (button) button.disabled = false;
+                    if (status) status.textContent = 'Catalog import failed.';
+                    showMessage(`Could not process price catalog: ${error.message || 'worker error'}`, 'danger');
+                };
+                worker.postMessage({ type: 'parse', file });
+            } catch (error) {
+                priceCatalogState = 'failed';
+                await savePriceCatalogMetadata({ state: 'failed' }).catch(console.warn);
+                if (button) button.disabled = false;
+                if (status) status.textContent = 'No TCGplayer catalog loaded.';
+                showMessage(`Could not start catalog import: ${error.message}`, 'danger');
+            }
+        }
+
+        async function loadPriceData() {
+            try {
+                const db = await openPriceCatalogDb();
+                const [count, metadata] = await Promise.all([
+                    new Promise((resolve, reject) => {
+                    const request = db.transaction(PRICE_CATALOG_STORE, 'readonly').objectStore(PRICE_CATALOG_STORE).index('matchKey').count();
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                    }),
+                    readPriceCatalogMetadata()
+                ]);
+                priceCatalogCount = count;
+                priceCatalogUpdatedAt = metadata?.updatedAt || null;
+                priceCatalogState = metadata?.state || (count ? 'unknown' : 'empty');
+            } catch (error) {
+                console.warn('Could not open the local price catalog:', error);
+            }
+            updatePriceCatalogStatus();
+        }
+
+        function updatePriceCatalogStatus() {
+            const status = document.getElementById('priceCatalogStatus');
+            if (!status) return;
+            const updatedLabel = priceCatalogUpdatedAt && Number.isFinite(Date.parse(priceCatalogUpdatedAt))
+                ? ` · updated ${new Date(priceCatalogUpdatedAt).toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' })}`
+                : '';
+            if (!priceCatalogCount) {
+                status.textContent = 'No TCGplayer catalog loaded; Search Cards can only use Scryfall price data.';
+            } else if (priceCatalogState === 'ready' && updatedLabel) {
+                status.textContent = `TCGplayer catalog ready: ${priceCatalogCount.toLocaleString()} product/finish rows stored locally${updatedLabel}`;
+            } else if (priceCatalogState === 'importing') {
+                status.textContent = `Catalog import was interrupted: ${priceCatalogCount.toLocaleString()} rows saved so far. Re-import to finish.`;
+            } else if (priceCatalogState === 'failed') {
+                status.textContent = 'Catalog import failed; clear pricing data and import the CSV again.';
+            } else {
+                status.textContent = `Catalog completion time is unknown (${priceCatalogCount.toLocaleString()} rows found). Re-import to verify and record a complete catalog.`;
+            }
+        }
+
+        async function findCardPricing(cardName, setName, condition, collectorNumber) {
+            try {
+                const db = await openPriceCatalogDb();
+                const candidates = await new Promise((resolve, reject) => {
+                    const index = db.transaction(PRICE_CATALOG_STORE, 'readonly').objectStore(PRICE_CATALOG_STORE).index('matchKey');
+                    const request = index.getAll(IDBKeyRange.only(catalogMatchKey(setName, collectorNumber, condition)));
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+                const wantedName = normalizeCatalogValue(cardName);
+                const match = candidates.find(row => normalizeCatalogValue(row.productName) === wantedName) ||
+                    candidates.find(row => normalizeCatalogValue(row.productName).includes(wantedName));
+                return match || null;
+            } catch (error) {
+                console.warn('Price catalog lookup failed:', error);
                 return null;
             }
-            
-            // Try exact match first
-            let match = priceData.find(item => 
-                item['Product Name'] === cardName && 
-                item['Set Name'] === setName && 
-                item['Condition'] === condition
-            );
-            
-            if (match) {
-                return {
-                    marketPrice: parseFloat(match['TCG Market Price']) || 0,
-                    lowPrice: parseFloat(match['TCG Low Price']) || 0,
-                    lowShipping: parseFloat(match['TCG Low Price With Shipping']) || 0,
-                    tcgDirectLow: parseFloat(match['TCG Direct Low']) || 0
-                };
+        }
+
+        async function resolvePendingTCGplayerSkus() {
+            let resolvedCount = 0;
+            for (const item of inventory) {
+                const pricingData = await findCardPricing(item.name, item.set, item.condition, item.number);
+                if (!pricingData?.tcgplayerId) continue;
+
+                const skuChanged = item.tcgplayerId !== pricingData.tcgplayerId;
+                item.tcgplayerId = pricingData.tcgplayerId;
+                item.tcgProductName = pricingData.productName;
+                item.tcgSetName = pricingData.setName;
+                item.tcgNumber = pricingData.number;
+                item.tcgProductLine = pricingData.productLine;
+                item.rarity = pricingData.rarity || item.rarity;
+                item.marketPrice = pricingData.marketPrice || item.marketPrice;
+                item.lowPrice = pricingData.lowPrice;
+                item.lowShipping = pricingData.lowShipping;
+                item.tcgDirectLow = pricingData.tcgDirectLow;
+
+                if (item.lowPrice > 0) {
+                    const originalPrice = Number(item.originalPrice || item.marketPrice || item.price || 0);
+                    const updatedPrice = calculatePrice({ ...item, originalPrice }, activePricingStrategy);
+                    item.calculatedPrice = updatedPrice;
+                    item.price = updatedPrice;
+                }
+
+                item.pricingNeedsReview = needsPricingReview(item);
+                item.pricingReviewReason = item.pricingNeedsReview
+                    ? 'TCG Low is missing; review this price before listing.'
+                    : '';
+                if (skuChanged) resolvedCount++;
             }
-            
-            // Try fuzzy matching on card name if exact match fails
-            match = priceData.find(item => 
-                item['Product Name'].toLowerCase().includes(cardName.toLowerCase()) && 
-                item['Set Name'] === setName && 
-                item['Condition'] === condition
-            );
-            
-            if (match) {
-                return {
-                    marketPrice: parseFloat(match['TCG Market Price']) || 0,
-                    lowPrice: parseFloat(match['TCG Low Price']) || 0,
-                    lowShipping: parseFloat(match['TCG Low Price With Shipping']) || 0,
-                    tcgDirectLow: parseFloat(match['TCG Direct Low']) || 0
-                };
-            }
-            
-            return null;
+            return resolvedCount;
         }
 
         // Utility functions
