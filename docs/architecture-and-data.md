@@ -27,7 +27,9 @@ The browser inventory uses objects with these fields (some are optional by impor
 | `pricingNeedsReview`, `pricingReviewReason` | Missing-low warning state derived from valid market price and absent TCG Low. |
 | `tcgplayerId`, `productLine`, `title`, `tcgDirectLow`, `addToQuantity`, `photoUrl` | Optional TCGplayer CSV round-trip fields. |
 
-The app stores inventory in localStorage key `tcg_inventory_v2` and selected strategy in `tcg_pricing_strategy`. Imported price list data uses `tcg_price_data`. Inventory itself is browser-local; there is no database or server-side account storage.
+Inventory is session-only: it is cleared on page startup and is not saved to localStorage, so import the current inventory CSV after each reload. The selected strategy is stored in `tcg_pricing_strategy`; imported price list data uses `tcg_price_data`.
+
+The inventory view can hide rows whose current listing price is below `$0.51`, `$1`, `$2`, or `$5`. This is a display filter only: hidden rows remain in inventory, are included in CSV exports, and are unaffected by bulk actions in the filtered view.
 
 ## TCGplayer CSV contract
 

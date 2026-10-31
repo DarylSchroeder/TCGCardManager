@@ -7,6 +7,7 @@
         root.calculateTCGPrice = pricing.calculateTCGPrice;
         root.roundPrice = pricing.roundPrice;
         root.needsPricingReview = pricing.needsPricingReview;
+        root.isBelowMarketGuardrail = pricing.isBelowMarketGuardrail;
         root.isExcludedCard = pricing.isExcludedCard;
         root.EXCLUDED_CARDS = pricing.EXCLUDED_CARDS;
         root.MINIMUM_PRICE = pricing.MINIMUM_PRICE;
@@ -15,6 +16,7 @@
     }
 }(typeof self !== 'undefined' ? self : this, function() {
     const MINIMUM_PRICE = 0.50;
+    const SELLER_SHIPPING_PRICE = 0.99;
     const DEFAULT_PRICING_STRATEGY = 'shippingAdjusted';
     const PRICING_STRATEGIES = {
         shippingAdjusted: {
@@ -31,6 +33,11 @@
             id: 'marketAwareLow',
             label: 'Market-aware TCG Low',
             description: 'Undercuts TCG Low unless it is more than $0.50 below market, then undercuts market instead.'
+        },
+        marketGuardedShippedLow: {
+            id: 'marketGuardedShippedLow',
+            label: 'Market-guarded shipped low',
+            description: 'Undercuts the lowest shipped listing using $0.99 shipping, while limiting discounts below Market to 5% or $0.50 and never pricing below TCG Low.'
         }
     };
     const EXCLUDED_CARDS = [
@@ -72,6 +79,17 @@
         return marketPrice >= MINIMUM_PRICE && lowPrice <= 0;
     }
 
+    function isBelowMarketGuardrail(item) {
+        const marketPrice = Number(item.marketPrice || 0);
+        const listingPrice = roundPrice(item.calculatedPrice ?? item.originalPrice ?? item.price ?? 0);
+
+        if (marketPrice <= 0 || listingPrice >= marketPrice) return false;
+
+        const allowedDiscount = Math.min(marketPrice * 0.05, 0.50);
+        const minimumAllowedPrice = roundPrice(Math.max(MINIMUM_PRICE, marketPrice - allowedDiscount));
+        return listingPrice < minimumAllowedPrice;
+    }
+
     function isExcludedCard(cardName) {
         return EXCLUDED_CARDS.some(excludedName =>
             cardName &&
@@ -96,6 +114,13 @@
             return roundPrice(originalPrice);
         }
 
+        if (
+            strategy.id === 'marketGuardedShippedLow' &&
+            (marketPrice <= 0 || lowPrice <= 0 || lowShipping <= 0)
+        ) {
+            return roundPrice(originalPrice);
+        }
+
         if (marketPrice < MINIMUM_PRICE && lowPrice < MINIMUM_PRICE) {
             return MINIMUM_PRICE;
         }
@@ -107,6 +132,18 @@
         if (strategy.id === 'marketAwareLow') {
             const targetPrice = lowPrice < marketPrice - 0.50 ? marketPrice : lowPrice;
             return roundPrice(Math.max(targetPrice - 0.01, MINIMUM_PRICE));
+        }
+
+        if (strategy.id === 'marketGuardedShippedLow') {
+            // The shipped-low field is the competitor's delivered price. Compare it
+            // with our listing price plus our fixed shipping charge, then undercut by $0.01.
+            const shippedLowTarget = lowShipping - SELLER_SHIPPING_PRICE - 0.01;
+            const marketDiscountLimit = Math.min(marketPrice * 0.05, 0.50);
+            const marketFloor = marketPrice - marketDiscountLimit;
+            const competitiveTarget = Math.min(marketPrice, shippedLowTarget);
+            const safeFloor = Math.max(MINIMUM_PRICE, lowPrice, marketFloor);
+
+            return roundPrice(Math.max(safeFloor, competitiveTarget));
         }
 
         const trueMarket = Math.max(marketPrice, lowPrice);
@@ -137,6 +174,7 @@
         calculateTCGPrice,
         roundPrice,
         needsPricingReview,
+        isBelowMarketGuardrail,
         isExcludedCard,
         MINIMUM_PRICE,
         EXCLUDED_CARDS,

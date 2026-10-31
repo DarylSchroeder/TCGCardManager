@@ -9,6 +9,10 @@ temp/
 # Node modules
 node_modules/
 
+# .NET build output (at any repository depth)
+**/bin/
+**/obj/
+
 # Backup directories
 backup/
 

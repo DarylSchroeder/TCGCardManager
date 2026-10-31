@@ -23,6 +23,10 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
+        .container {
+            max-width: 90vw;
+        }
+
         .main-header {
             background: linear-gradient(135deg, var(--primary-color) 0%, #1e40af 100%);
             color: white;
@@ -63,6 +67,19 @@
             border-radius: 12px;
             padding: 1.5rem;
             box-shadow: var(--card-shadow);
+        }
+
+        .search-panel-toggle {
+            font-size: 1.25rem;
+            text-align: left;
+        }
+
+        .search-panel-toggle .toggle-icon {
+            transition: transform 0.2s ease;
+        }
+
+        .search-panel-toggle[aria-expanded="true"] .toggle-icon {
+            transform: rotate(180deg);
         }
 
         .card-result {
@@ -182,35 +199,35 @@
     <div class="main-header">
         <div class="container">
             <div class="row align-items-center">
-                <div class="col-md-8">
+                <div class="col-12 col-xl-4">
                     <h1 class="mb-2"><i class="fas fa-cards-blank me-2"></i>TCG Card Manager v2</h1>
                     <p class="mb-0 opacity-75">Clean, modern card collection management</p>
                     <small class="text-muted">
                         <i class="fas fa-clock me-1"></i>Published: <span id="publishTimestamp">Loading…</span>
                     </small>
                 </div>
-                <div class="col-md-4 text-end">
-                    <button class="btn btn-outline-light btn-sm me-2" onclick="importInventory()">
-                        <i class="fas fa-upload me-1"></i>Import CSV
-                    </button>
-                    <button class="btn btn-warning btn-sm me-2" onclick="importPrices()">
-                        <i class="fas fa-dollar-sign me-1"></i>Import Prices
-                    </button>
-                    <select id="pricingStrategy" class="form-select form-select-sm d-inline-block w-auto me-2"
-                            aria-label="Pricing strategy" onchange="updatePricingStrategy(this.value)">
-                        <option value="shippingAdjusted">Shipping-adjusted low</option>
-                        <option value="undercutLow">Undercut TCG Low by $0.01</option>
-                        <option value="marketAwareLow">Market-aware TCG Low</option>
-                    </select>
-                    <button class="btn btn-primary btn-sm me-2" onclick="updateAllPrices()">
-                        <i class="fas fa-calculator me-1"></i>Update Prices
-                    </button>
-                    <button class="btn btn-success btn-sm me-2" onclick="exportInventory()">
-                        <i class="fas fa-download me-1"></i>Export CSV
-                    </button>
-                    <button class="btn btn-outline-danger btn-sm" onclick="clearInventory()">
-                        <i class="fas fa-trash me-1"></i>Clear Inventory
-                    </button>
+                <div class="col-12 col-xl-8">
+                    <div class="d-flex flex-wrap justify-content-end align-items-center gap-2">
+                        <button class="btn btn-outline-light btn-sm" onclick="importInventory()">
+                            <i class="fas fa-upload me-1"></i>Import CSV
+                        </button>
+                        <select id="pricingStrategy" class="form-select form-select-sm w-auto"
+                                aria-label="Pricing strategy" onchange="updatePricingStrategy(this.value)">
+                            <option value="shippingAdjusted">Shipping-adjusted low</option>
+                            <option value="undercutLow">Undercut TCG Low by $0.01</option>
+                            <option value="marketAwareLow">Market-aware TCG Low</option>
+                            <option value="marketGuardedShippedLow">Market-guarded shipped low</option>
+                        </select>
+                        <button class="btn btn-primary btn-sm" onclick="updateAllPrices()">
+                            <i class="fas fa-calculator me-1"></i>Update Prices
+                        </button>
+                        <button class="btn btn-success btn-sm" onclick="exportInventory()">
+                            <i class="fas fa-download me-1"></i>Export CSV
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm ms-xl-2 ps-xl-3 border-start-0 border-xl-start border-light" onclick="clearInventory()">
+                            <i class="fas fa-trash me-1"></i>Clear Inventory
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -221,29 +238,38 @@
         <div class="row mb-4">
             <div class="col-12">
                 <div class="search-container">
-                    <h4 class="mb-3"><i class="fas fa-search me-2"></i>Search Cards</h4>
-                    <div class="input-group mb-3">
-                        <input type="text" id="searchInput" class="form-control form-control-lg" 
-                               placeholder="Enter card name..." onkeypress="handleSearchKeypress(event)">
-                        <button class="btn btn-primary btn-lg" onclick="searchCards()">
-                            <i class="fas fa-search"></i>
-                        </button>
-                    </div>
-                    
-                    <!-- Loading Spinner -->
-                    <div class="loading-spinner text-center" id="loadingSpinner">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                        <p class="mt-2 text-muted">Searching cards...</p>
-                    </div>
+                    <button class="btn btn-link text-dark text-decoration-none p-0 w-100 d-flex justify-content-between align-items-center search-panel-toggle"
+                            type="button" data-bs-toggle="collapse" data-bs-target="#searchCardsPanel"
+                            aria-expanded="false" aria-controls="searchCardsPanel">
+                        <span><i class="fas fa-search me-2" aria-hidden="true"></i>Search Cards</span>
+                        <i class="fas fa-chevron-down toggle-icon" aria-hidden="true"></i>
+                    </button>
+                    <div class="collapse" id="searchCardsPanel">
+                        <div class="pt-3">
+                            <div class="input-group mb-3">
+                                <input type="text" id="searchInput" class="form-control form-control-lg"
+                                       placeholder="Enter card name..." onkeypress="handleSearchKeypress(event)">
+                                <button class="btn btn-primary btn-lg" onclick="searchCards()">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
 
-                    <!-- Search Results -->
-                    <div id="searchResults">
-                        <div class="empty-state">
-                            <i class="fas fa-search"></i>
-                            <h5>Search for Magic cards</h5>
-                            <p>Enter a card name to get started</p>
+                            <!-- Loading Spinner -->
+                            <div class="loading-spinner text-center" id="loadingSpinner">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Searching...</span>
+                                </div>
+                                <p class="mt-2 text-muted">Searching cards...</p>
+                            </div>
+
+                            <!-- Search Results -->
+                            <div id="searchResults">
+                                <div class="empty-state">
+                                    <i class="fas fa-search"></i>
+                                    <h5>Search for Magic cards</h5>
+                                    <p>Enter a card name to get started</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -259,6 +285,18 @@
                         <span class="badge bg-light text-dark" id="inventoryCount">0 cards</span>
                     </div>
                     <div class="card-body p-0">
+                        <div class="d-flex flex-wrap justify-content-end align-items-center gap-2 px-3 pt-3">
+                            <label for="inventoryPriceThreshold" class="form-label mb-0 small">Hide listing prices below</label>
+                            <select id="inventoryPriceThreshold" class="form-select form-select-sm w-auto"
+                                    aria-label="Hide cards below listing price" onchange="updateInventoryDisplay()">
+                                <option value="0">Show all</option>
+                                <option value="0.51">$0.51</option>
+                                <option value="1">$1.00</option>
+                                <option value="2">$2.00</option>
+                                <option value="5">$5.00</option>
+                            </select>
+                            <span class="text-muted small">View filter only; CSV export includes all cards.</span>
+                        </div>
                         <ul class="nav nav-tabs px-3 pt-3" id="inventoryTabs" role="tablist">
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link active" id="inventory-main-tab" data-bs-toggle="tab"
@@ -269,12 +307,34 @@
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="inventory-excluded-tab" data-bs-toggle="tab"
                                         data-bs-target="#inventory-excluded-pane" type="button" role="tab">
-                                    Excluded Cards <span class="badge bg-warning text-dark ms-1" id="excludedInventoryCount">0</span>
+                                    Manual Review <span class="badge bg-warning text-dark ms-1" id="manualReviewInventoryCount">0</span>
                                 </button>
                             </li>
                         </ul>
                         <div class="tab-content">
                             <div class="tab-pane fade show active" id="inventory-main-pane" role="tabpanel">
+                                <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                                    <span class="text-muted small" id="inventoryActionsLabel">Apply actions to all rows in this view</span>
+                                    <div class="d-flex gap-1">
+                                        <button class="btn btn-sm btn-outline-primary" data-inventory-view-action="inventory" onclick="applyInventoryViewAction('marketPrice', 'inventory')"
+                                                title="Set all Inventory prices to Market Price" aria-label="Set all Inventory prices to Market Price">
+                                            <i class="fas fa-chart-line" aria-hidden="true"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-secondary" data-inventory-view-action="inventory" onclick="applyInventoryViewAction('lowPrice', 'inventory')"
+                                                title="Set all Inventory prices to TCG Low Price" aria-label="Set all Inventory prices to TCG Low Price">
+                                            <i class="fas fa-tag" aria-hidden="true"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-info" data-inventory-view-action="inventory" onclick="applyInventoryViewAction('lowShippingUndercut', 'inventory')"
+                                                title="Set all Inventory prices to TCG Low Price With Shipping minus $0.01"
+                                                aria-label="Set all Inventory prices to TCG Low Price With Shipping minus $0.01">
+                                            <i class="fas fa-truck-fast" aria-hidden="true"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" data-inventory-view-action="inventory" onclick="applyInventoryViewAction('delete', 'inventory')"
+                                                title="Delete all Inventory rows" aria-label="Delete all Inventory rows">
+                                            <i class="fas fa-trash" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
+                                </div>
                                 <div class="table-responsive">
                                     <table class="table table-hover mb-0">
                                         <thead>
@@ -290,7 +350,7 @@
                                                 <th class="sortable" data-sort="lowShipping">Low w/ Shipping <span class="sort-icon"></span></th>
                                                 <th class="sortable" data-sort="originalPrice">Original Price <span class="sort-icon"></span></th>
                                                 <th class="sortable" data-sort="calculatedPrice">Calculated Price <span class="sort-icon"></span></th>
-                                                <th>Review</th>
+                                                <th class="sortable" data-sort="review">Review <span class="sort-icon"></span></th>
                                                 <th>Actions</th>
                                             </tr>
                                         </thead>
@@ -299,6 +359,28 @@
                                 </div>
                             </div>
                             <div class="tab-pane fade" id="inventory-excluded-pane" role="tabpanel">
+                                <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                                    <span class="text-muted small" id="manualReviewActionsLabel">Apply actions to all rows in this view</span>
+                                    <div class="d-flex gap-1">
+                                        <button class="btn btn-sm btn-outline-primary" data-inventory-view-action="manualReview" onclick="applyInventoryViewAction('marketPrice', 'manualReview')"
+                                                title="Set all Manual Review prices to Market Price" aria-label="Set all Manual Review prices to Market Price">
+                                            <i class="fas fa-chart-line" aria-hidden="true"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-secondary" data-inventory-view-action="manualReview" onclick="applyInventoryViewAction('lowPrice', 'manualReview')"
+                                                title="Set all Manual Review prices to TCG Low Price" aria-label="Set all Manual Review prices to TCG Low Price">
+                                            <i class="fas fa-tag" aria-hidden="true"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-info" data-inventory-view-action="manualReview" onclick="applyInventoryViewAction('lowShippingUndercut', 'manualReview')"
+                                                title="Set all Manual Review prices to TCG Low Price With Shipping minus $0.01"
+                                                aria-label="Set all Manual Review prices to TCG Low Price With Shipping minus $0.01">
+                                            <i class="fas fa-truck-fast" aria-hidden="true"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" data-inventory-view-action="manualReview" onclick="applyInventoryViewAction('delete', 'manualReview')"
+                                                title="Delete all Manual Review rows" aria-label="Delete all Manual Review rows">
+                                            <i class="fas fa-trash" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
+                                </div>
                                 <div class="table-responsive">
                                     <table class="table table-hover mb-0">
                                         <thead>
@@ -314,11 +396,11 @@
                                                 <th class="sortable" data-sort="lowShipping">Low w/ Shipping <span class="sort-icon"></span></th>
                                                 <th class="sortable" data-sort="originalPrice">Original Price <span class="sort-icon"></span></th>
                                                 <th class="sortable" data-sort="calculatedPrice">Calculated Price <span class="sort-icon"></span></th>
-                                                <th>Review</th>
+                                                <th class="sortable" data-sort="review">Review <span class="sort-icon"></span></th>
                                                 <th>Actions</th>
                                             </tr>
                                         </thead>
-                                        <tbody id="excludedTableBody"></tbody>
+                                        <tbody id="manualReviewTableBody"></tbody>
                                     </table>
                                 </div>
                             </div>
@@ -1204,6 +1286,12 @@
          */
         function sortInventory(field, direction = 'asc', items = inventory) {
             return [...items].sort((a, b) => {
+                if (field === 'review') {
+                    const aNeedsReview = getPricingReviewReasons(a).length > 0;
+                    const bNeedsReview = getPricingReviewReasons(b).length > 0;
+                    return Number(bNeedsReview) - Number(aNeedsReview);
+                }
+
                 // Put data-quality warnings first regardless of the selected sort order.
                 const reviewDifference = Number(Boolean(b.pricingNeedsReview)) - Number(Boolean(a.pricingNeedsReview));
                 if (reviewDifference !== 0) return reviewDifference;
@@ -1239,7 +1327,10 @@
          * @param {string} field - Field to sort by
          */
         function handleSort(field) {
-            if (currentSortField === field) {
+            if (field === 'review') {
+                currentSortField = field;
+                currentSortDirection = 'asc';
+            } else if (currentSortField === field) {
                 currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
             } else {
                 currentSortField = field;
@@ -1265,12 +1356,45 @@
             });
         }
 
-        function isExcludedInventoryItem(item) {
-            return typeof isExcludedCard === 'function' && isExcludedCard(item.name);
+        function isManualReviewItem(item) {
+            const isNamedExclusion = typeof isExcludedCard === 'function' && isExcludedCard(item.name);
+            const isExpensive = Number(item.marketPrice || 0) > 30 || Number(item.lowPrice || 0) > 30;
+            const currentPrice = getListingPrice(item);
+            const marketPrice = Number(item.marketPrice || 0);
+            const expensivePriceNeedsReview = isExpensive && marketPrice > 0 && currentPrice > marketPrice;
+
+            return isNamedExclusion || expensivePriceNeedsReview;
         }
 
         function getListingPrice(item) {
             return roundPrice(item.calculatedPrice ?? item.originalPrice ?? item.price ?? 0);
+        }
+
+        function getVisibleInventoryItems(items) {
+            const threshold = Number(document.getElementById('inventoryPriceThreshold')?.value || 0);
+            return threshold > 0
+                ? items.filter(item => getListingPrice(item) >= threshold)
+                : items;
+        }
+
+        function getPricingReviewReasons(item) {
+            const reasons = [];
+            const marketPrice = roundPrice(item.marketPrice || 0);
+            const listingPrice = getListingPrice(item);
+
+            if (item.pricingNeedsReview) {
+                reasons.push(item.pricingReviewReason || 'TCG Low is missing; review this price before listing.');
+            }
+            if (typeof isBelowMarketGuardrail === 'function' && isBelowMarketGuardrail(item)) {
+                const allowedDiscount = Math.min(marketPrice * 0.05, 0.50);
+                const minimumAllowedPrice = roundPrice(Math.max(0.50, marketPrice - allowedDiscount));
+                reasons.push(`Listing price $${listingPrice.toFixed(2)} is below the Market guardrail of $${minimumAllowedPrice.toFixed(2)}.`);
+            }
+            if (marketPrice > 0 && listingPrice > marketPrice && isManualReviewItem(item)) {
+                reasons.push(`Listing price $${listingPrice.toFixed(2)} is above Market Price $${marketPrice.toFixed(2)}.`);
+            }
+
+            return reasons;
         }
 
         function renderInventoryRows(items, emptyTitle, emptyMessage) {
@@ -1289,16 +1413,17 @@
             }
 
             return items.map(item => {
+                const pricingReviewReasons = getPricingReviewReasons(item);
                 const rowClasses = [
                     item.pricingNeedsReview ? 'table-warning' : '',
-                    isExcludedInventoryItem(item) ? 'table-info' : ''
+                    isManualReviewItem(item) ? 'table-info' : ''
                 ].filter(Boolean).join(' ');
 
                 return `
                     <tr class="${rowClasses}">
                         <td>
                             ${item.name}
-                            ${isExcludedInventoryItem(item) ? '<span class="badge bg-info text-dark ms-2">Excluded</span>' : ''}
+                            ${isManualReviewItem(item) ? '<span class="badge bg-info text-dark ms-2">Manual Review</span>' : ''}
                         </td>
                         <td>${item.set}</td>
                         <td>${item.number || 'N/A'}</td>
@@ -1319,17 +1444,36 @@
                         </td>
                         <td>$${getListingPrice(item).toFixed(2)}</td>
                         <td>
-                            ${item.pricingNeedsReview ? `
+                            ${pricingReviewReasons.length ? `
                                 <i class="fas fa-exclamation-triangle text-warning"
-                                   title="${item.pricingReviewReason || 'TCG Low is missing; review this price before listing.'}"
-                                   aria-label="Pricing review required"></i>
-                                <span class="visually-hidden">Pricing review required</span>
+                                   title="${pricingReviewReasons.join(' ')}"
+                                   aria-label="Pricing review recommended: ${pricingReviewReasons.join(' ')}"></i>
+                                <span class="visually-hidden">Pricing review recommended: ${pricingReviewReasons.join(' ')}</span>
                             ` : ''}
                         </td>
                         <td>
-                            <button class="btn btn-sm btn-outline-danger" onclick="removeFromInventory('${item.id}')">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-sm btn-outline-primary" onclick="setInventoryPriceFromAction('${item.id}', 'marketPrice')"
+                                        title="Set listing price to Market Price" aria-label="Set ${item.name} price to Market Price"
+                                        ${Number(item.marketPrice || 0) <= 0 ? 'disabled' : ''}>
+                                    <i class="fas fa-chart-line" aria-hidden="true"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="setInventoryPriceFromAction('${item.id}', 'lowPrice')"
+                                        title="Set listing price to TCG Low Price" aria-label="Set ${item.name} price to TCG Low Price"
+                                        ${Number(item.lowPrice || 0) <= 0 ? 'disabled' : ''}>
+                                    <i class="fas fa-tag" aria-hidden="true"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-info" onclick="setInventoryPriceFromAction('${item.id}', 'lowShippingUndercut')"
+                                        title="Set listing price to TCG Low Price With Shipping minus $0.01"
+                                        aria-label="Set ${item.name} price to TCG Low Price With Shipping minus $0.01"
+                                        ${Number(item.lowShipping || 0) <= 0 ? 'disabled' : ''}>
+                                    <i class="fas fa-truck-fast" aria-hidden="true"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="removeFromInventory('${item.id}')"
+                                        title="Delete card" aria-label="Delete ${item.name}">
+                                    <i class="fas fa-trash" aria-hidden="true"></i>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -1338,44 +1482,141 @@
 
         function updateInventoryDisplay() {
             const tbody = document.getElementById('inventoryTableBody');
-            const excludedTbody = document.getElementById('excludedTableBody');
+            const manualReviewTbody = document.getElementById('manualReviewTableBody');
             const countBadge = document.getElementById('inventoryCount');
             const mainCountBadge = document.getElementById('mainInventoryCount');
-            const excludedCountBadge = document.getElementById('excludedInventoryCount');
+            const manualReviewCountBadge = document.getElementById('manualReviewInventoryCount');
             
             if (inventory.length === 0) {
-                tbody.innerHTML = renderInventoryRows([], 'No cards in inventory', 'Search and add cards to get started');
-                excludedTbody.innerHTML = renderInventoryRows([], 'No excluded cards', 'Excluded cards will appear here');
+                tbody.innerHTML = renderInventoryRows([], 'No cards in inventory', 'Import your inventory CSV after each page reload, or search and add cards during this session.');
+                manualReviewTbody.innerHTML = renderInventoryRows([], 'No cards need manual review', 'Cards requiring manual pricing review will appear here');
                 countBadge.textContent = '0 cards';
                 mainCountBadge.textContent = '0';
-                excludedCountBadge.textContent = '0';
+                manualReviewCountBadge.textContent = '0';
+                updateInventoryViewActionToolbar('inventory', 0);
+                updateInventoryViewActionToolbar('manualReview', 0);
                 return;
             }
 
-            const regularInventory = inventory.filter(item => !isExcludedInventoryItem(item));
-            const excludedInventory = inventory.filter(isExcludedInventoryItem);
+            const allRegularInventory = inventory.filter(item => !isManualReviewItem(item));
+            const allManualReviewInventory = inventory.filter(isManualReviewItem);
+            const regularInventory = getVisibleInventoryItems(allRegularInventory);
+            const manualReviewInventory = getVisibleInventoryItems(allManualReviewInventory);
             const sortedRegularInventory = sortInventory(currentSortField, currentSortDirection, regularInventory);
-            const sortedExcludedInventory = sortInventory(currentSortField, currentSortDirection, excludedInventory);
+            const sortedManualReviewInventory = sortInventory(currentSortField, currentSortDirection, manualReviewInventory);
 
             const totalCards = inventory.reduce((sum, item) => sum + item.quantity, 0);
             const totalValue = inventory.reduce((sum, item) => sum + (getListingPrice(item) * item.quantity), 0);
-            const regularCards = regularInventory.reduce((sum, item) => sum + item.quantity, 0);
-            const excludedCards = excludedInventory.reduce((sum, item) => sum + item.quantity, 0);
+            const regularCards = allRegularInventory.reduce((sum, item) => sum + item.quantity, 0);
+            const manualReviewCards = allManualReviewInventory.reduce((sum, item) => sum + item.quantity, 0);
             
             countBadge.textContent = `${totalCards} cards • $${totalValue.toFixed(2)}`;
             mainCountBadge.textContent = regularCards;
-            excludedCountBadge.textContent = excludedCards;
+            manualReviewCountBadge.textContent = manualReviewCards;
+            updateInventoryViewActionToolbar('inventory', regularInventory.length);
+            updateInventoryViewActionToolbar('manualReview', manualReviewInventory.length);
 
             tbody.innerHTML = renderInventoryRows(
                 sortedRegularInventory,
-                'No regular cards in inventory',
-                excludedInventory.length ? 'All current cards are on the excluded tab' : 'Search and add cards to get started'
+                allRegularInventory.length ? 'No rows match this price filter' : 'No regular cards in inventory',
+                allRegularInventory.length
+                    ? 'Lower the minimum listing price to show more Inventory rows.'
+                    : allManualReviewInventory.length ? 'All current cards need manual review' : 'Search and add cards to get started'
             );
-            excludedTbody.innerHTML = renderInventoryRows(
-                sortedExcludedInventory,
-                'No excluded cards',
-                'Cards matching the pricing exclusion list will appear here'
+            manualReviewTbody.innerHTML = renderInventoryRows(
+                sortedManualReviewInventory,
+                allManualReviewInventory.length ? 'No rows match this price filter' : 'No cards need manual review',
+                allManualReviewInventory.length
+                    ? 'Lower the minimum listing price to show more Manual Review rows.'
+                    : 'Named exclusions and expensive cards priced above Market will appear here'
             );
+        }
+
+        function updateInventoryViewActionToolbar(viewName, rowCount) {
+            const label = document.getElementById(`${viewName}ActionsLabel`);
+            const buttons = document.querySelectorAll(`[data-inventory-view-action="${viewName}"]`);
+
+            label.textContent = rowCount
+                ? `Apply actions to all ${rowCount} visible rows in this view`
+                : 'No rows in this view';
+            buttons.forEach(button => { button.disabled = rowCount === 0; });
+        }
+
+        function setInventoryPriceFromAction(itemId, priceField) {
+            const item = inventory.find(candidate => candidate.id === itemId);
+            if (!item) return;
+
+            const action = getQuickPriceAction(item, priceField);
+            if (!action) {
+                showMessage('The selected price is unavailable for this card', 'warning');
+                return;
+            }
+
+            setInventoryItemPrice(item, action.price);
+            saveInventoryToStorage();
+            updateInventoryDisplay();
+            showMessage(`Set ${item.name} to ${action.label} ($${action.price.toFixed(2)})`, 'success');
+        }
+
+        function getQuickPriceAction(item, actionId) {
+            const actions = {
+                marketPrice: { label: 'Market Price', value: Number(item.marketPrice) },
+                lowPrice: { label: 'TCG Low Price', value: Number(item.lowPrice) },
+                lowShippingUndercut: {
+                    label: 'TCG Low Price With Shipping minus $0.01',
+                    value: Number(item.lowShipping) - 0.01
+                }
+            };
+            const action = actions[actionId];
+
+            if (!action || !Number.isFinite(action.value) || action.value <= 0) return null;
+            return { label: action.label, price: roundPrice(action.value) };
+        }
+
+        function setInventoryItemPrice(item, price) {
+            item.originalPrice = price;
+            item.calculatedPrice = price;
+            item.price = price;
+        }
+
+        function applyInventoryViewAction(actionId, viewName) {
+            if (viewName !== 'inventory' && viewName !== 'manualReview') return;
+
+            const viewLabel = viewName === 'manualReview' ? 'Manual Review' : 'Inventory';
+            const matchingViewItems = inventory.filter(item => viewName === 'manualReview'
+                ? isManualReviewItem(item)
+                : !isManualReviewItem(item));
+            const viewItems = getVisibleInventoryItems(matchingViewItems);
+            if (!viewItems.length) return;
+
+            if (actionId === 'delete') {
+                if (!confirm(`Delete all ${viewItems.length} rows in ${viewLabel}? This cannot be undone.`)) return;
+
+                const viewIds = new Set(viewItems.map(item => item.id));
+                inventory = inventory.filter(item => !viewIds.has(item.id));
+                saveInventoryToStorage();
+                updateInventoryDisplay();
+                showMessage(`Deleted ${viewItems.length} ${viewLabel} rows`, 'info');
+                return;
+            }
+
+            const updates = viewItems
+                .map(item => ({ item, action: getQuickPriceAction(item, actionId) }))
+                .filter(entry => entry.action);
+
+            if (!updates.length) {
+                showMessage('No rows have a usable price for that action', 'warning');
+                return;
+            }
+
+            updates.forEach(({ item, action }) => setInventoryItemPrice(item, action.price));
+            saveInventoryToStorage();
+            updateInventoryDisplay();
+
+            const skippedCount = viewItems.length - updates.length;
+            const actionLabel = updates[0].action.label;
+            const skippedNote = skippedCount ? ` Skipped ${skippedCount} row${skippedCount === 1 ? '' : 's'} without that price.` : '';
+            showMessage(`Set ${updates.length} ${viewLabel} rows to ${actionLabel}.${skippedNote}`, skippedCount ? 'warning' : 'success');
         }
 
         function updateQuantity(itemId, newQuantity) {
@@ -1510,12 +1751,7 @@
 
         // Storage functions
         function saveInventoryToStorage() {
-            try {
-                localStorage.setItem('tcg_inventory_v2', JSON.stringify(inventory));
-            } catch (error) {
-                console.error('Failed to save inventory:', error);
-                showMessage('Failed to save inventory to local storage', 'warning');
-            }
+            // Inventory is intentionally session-only so reloads require a fresh CSV import.
         }
 
         function loadPricingStrategy() {
@@ -1535,23 +1771,11 @@
         }
 
         function loadInventoryFromStorage() {
+            inventory = [];
             try {
-                const saved = localStorage.getItem('tcg_inventory_v2');
-                if (saved) {
-                    inventory = JSON.parse(saved).map(item => {
-                        const pricingNeedsReview = needsPricingReview(item);
-                        return {
-                            ...item,
-                            pricingNeedsReview,
-                            pricingReviewReason: pricingNeedsReview
-                                ? 'TCG Low is missing; review this price before listing.'
-                                : (item.pricingReviewReason || '')
-                        };
-                    });
-                }
+                localStorage.removeItem('tcg_inventory_v2');
             } catch (error) {
-                console.error('Failed to load inventory:', error);
-                inventory = [];
+                console.warn('Could not clear the old inventory cache:', error);
             }
         }
 
