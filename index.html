@@ -82,6 +82,44 @@
             flex: 0 0 auto;
         }
 
+        .search-result-heading {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: .75rem;
+        }
+
+        .search-result-price-grid {
+            border-collapse: collapse;
+            font-size: .68rem;
+            line-height: 1.25;
+            white-space: nowrap;
+            flex: 0 0 auto;
+        }
+
+        .search-result-price-grid th,
+        .search-result-price-grid td {
+            padding: .08rem .25rem;
+            text-align: right;
+        }
+
+        .search-result-price-grid th:first-child,
+        .search-result-price-grid td:first-child {
+            text-align: left;
+            color: #64748b;
+        }
+
+        .search-result-price-grid thead th {
+            color: #334155;
+            font-weight: 600;
+        }
+
+        @media (max-width: 480px) {
+            .search-result-heading {
+                flex-wrap: wrap;
+            }
+        }
+
         .search-result-quantity {
             width: 4.5rem;
             flex: 0 0 4.5rem;
@@ -584,7 +622,13 @@
          */
         function isPromoSet(setName) {
             if (!setName) return false;
-            return setName.toLowerCase().includes('promo');
+            const normalizedSetName = setName.toLowerCase();
+            return normalizedSetName.includes('promo') || normalizedSetName.includes('secret lair');
+        }
+
+        function sortSearchSetNames(setNames) {
+            // Stable sort keeps Scryfall's release order within regular and promo groups.
+            return [...setNames].sort((a, b) => Number(isPromoSet(a)) - Number(isPromoSet(b)));
         }
 
         /**
@@ -743,11 +787,13 @@
                     setGroups[card.set_name].push(card);
                 });
 
-                const defaultCard = sortedCards[0];
                 const cleanName = cardName.replace(/[^a-zA-Z0-9]/g, '');
 
-                // Use utility functions for collector number logic
-                const defaultSetCards = setGroups[defaultCard.set_name];
+                const defaultSetName = sortSearchSetNames(Object.keys(setGroups))[0];
+                const defaultSetCards = setGroups[defaultSetName];
+                const defaultCollectorGroups = deduplicateFoilVariants(defaultSetCards);
+                const defaultCollectorNumber = Object.keys(defaultCollectorGroups)[0];
+                const defaultCard = getRepresentativeCard(defaultCollectorGroups[defaultCollectorNumber]);
 
                 const imageUrl = defaultCard.image_uris?.small || defaultCard.card_faces?.[0]?.image_uris?.small || '';
                 return `
@@ -758,9 +804,14 @@
                                     <img src="${imageUrl}" alt="${cardName}"
                                          class="search-result-image" onclick="showLargeCardView('${defaultCard.id}')"
                                          id="card-image-${cleanName}">
-                                    <div class="min-w-0">
-                                        <h6 class="mb-1">${cardName}</h6>
-                                        <small class="text-muted">${defaultCard.type_line}</small>
+                                    <div class="min-w-0 flex-fill">
+                                        <div class="search-result-heading">
+                                            <div class="min-w-0">
+                                                <h6 class="mb-1">${cardName}</h6>
+                                                <small class="text-muted">${defaultCard.type_line}</small>
+                                            </div>
+                                            <div class="small text-muted d-none" id="search-price-${cleanName}" aria-live="polite"></div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="row g-2 mb-2">
@@ -790,7 +841,8 @@
                                 </div>
                                 <small class="text-muted d-block mb-2">Enter adds nonfoil · Shift+Enter adds foil</small>
                                 <label for="condition-${cleanName}" class="form-label small mb-1">Condition</label>
-                                <select class="form-select form-select-sm condition-select" id="condition-${cleanName}">
+                                <select class="form-select form-select-sm condition-select" id="condition-${cleanName}"
+                                        onchange="updateSearchCardPrice('${cardName}')">
                                     <option value="Near Mint">Near Mint</option>
                                     <option value="Lightly Played">Lightly Played</option>
                                     <option value="Moderately Played">Moderately Played</option>
@@ -804,6 +856,7 @@
 
             // Store all paper cards for reference
             window.allSearchResults = paperCards;
+            Object.keys(cardGroups).slice(0, 10).forEach(cardName => updateSearchCardPrice(cardName));
         }
 
         // ===== PHASE 2: CORE INVENTORY MATCHING =====
@@ -980,7 +1033,8 @@
          * @returns {string} - HTML for set dropdown options
          */
         function generateSetDropdown(cardName, setGroups) {
-            return Object.entries(setGroups).map(([setName, setCards]) => {
+            return sortSearchSetNames(Object.keys(setGroups)).map(setName => {
+                const setCards = setGroups[setName];
                 const hasInventory = setCards.some(card => hasInventoryForCard(cardName, setName, card.collector_number));
                 const totalCount = setCards.reduce((sum, card) => sum + getInventoryCountForCard(cardName, setName, card.collector_number), 0);
                 const displayText = hasInventory ? `${setName} ✓ (${totalCount})` : setName;
@@ -1010,14 +1064,6 @@
             
             const cleanName = cardName.replace(/[^a-zA-Z0-9]/g, '');
             
-            // Update card image
-            const imgElement = document.getElementById(`card-image-${cleanName}`);
-            const cardImage = card.image_uris?.small || card.card_faces?.[0]?.image_uris?.small;
-            if (imgElement && cardImage) {
-                imgElement.src = cardImage;
-                imgElement.onclick = () => showLargeCardView(card.id);
-            }
-            
             // Get all cards from the same set
             const setCards = window.allSearchResults.filter(c => 
                 c.name === cardName && c.set_name === card.set_name
@@ -1029,9 +1075,20 @@
                 <small class="text-muted d-block">Collector #</small>
                 ${generateCollectorNumberDropdown(cardName, setCards, cleanName)}
             `;
+
+            // Match the artwork to the collector number selected in the rebuilt list.
+            const selectedCollectorId = document.getElementById(`collector-${cleanName}`)?.value;
+            const selectedCard = window.allSearchResults.find(c => c.id === selectedCollectorId) || card;
+            const imgElement = document.getElementById(`card-image-${cleanName}`);
+            const cardImage = selectedCard.image_uris?.small || selectedCard.card_faces?.[0]?.image_uris?.small;
+            if (imgElement && cardImage) {
+                imgElement.src = cardImage;
+                imgElement.onclick = () => showLargeCardView(selectedCard.id);
+            }
             
             // Update quantity displays for the new version
             updateQuantityDisplays(cardName);
+            updateSearchCardPrice(cardName);
         }
 
         function updateCollectorNumber(cardName, cardId) {
@@ -1050,6 +1107,7 @@
             
             // Update quantity displays for the new version
             updateQuantityDisplays(cardName);
+            updateSearchCardPrice(cardName);
         }
 
         function showLargeCardView(cardId) {
@@ -2392,6 +2450,48 @@
             } catch (error) {
                 console.warn('Price catalog lookup failed:', error);
                 return null;
+            }
+        }
+
+        async function updateSearchCardPrice(cardName) {
+            const cleanName = cardName.replace(/[^a-zA-Z0-9]/g, '');
+            const priceElement = document.getElementById(`search-price-${cleanName}`);
+            const selectedCard = getCurrentlySelectedCard(cardName);
+            if (!priceElement || !selectedCard) return;
+
+            const condition = document.getElementById(`condition-${cleanName}`)?.value || 'Near Mint';
+            const lookupKey = `${selectedCard.id}|${condition}`;
+            priceElement.dataset.lookupKey = lookupKey;
+
+            const [nonfoil, foil] = await Promise.all([
+                findCardPricing(selectedCard.name, selectedCard.set_name, condition, selectedCard.collector_number),
+                findCardPricing(selectedCard.name, selectedCard.set_name, `${condition} Foil`, selectedCard.collector_number)
+            ]);
+
+            // Ignore responses for a previous selection if the user changed version/condition while lookups ran.
+            const currentCard = getCurrentlySelectedCard(cardName);
+            const currentCondition = document.getElementById(`condition-${cleanName}`)?.value || 'Near Mint';
+            if (!currentCard || priceElement.dataset.lookupKey !== `${currentCard.id}|${currentCondition}`) return;
+
+            const formatPrice = value => Number(value) > 0 ? `$${Number(value).toFixed(2)}` : '—';
+            const cellPrice = (row, key) => formatPrice(row?.[key]);
+            if (nonfoil || foil) {
+                priceElement.innerHTML = `
+                    <table class="search-result-price-grid" aria-label="Catalog prices">
+                        <thead><tr><th></th><th>Nonfoil</th><th>Foil</th></tr></thead>
+                        <tbody>
+                            <tr><td>Market</td><td>${cellPrice(nonfoil, 'marketPrice')}</td><td>${cellPrice(foil, 'marketPrice')}</td></tr>
+                            <tr><td>Low</td><td>${cellPrice(nonfoil, 'lowPrice')}</td><td>${cellPrice(foil, 'lowPrice')}</td></tr>
+                            <tr><td>Low + ship</td><td>${cellPrice(nonfoil, 'lowShipping')}</td><td>${cellPrice(foil, 'lowShipping')}</td></tr>
+                        </tbody>
+                    </table>`;
+                priceElement.classList.remove('d-none');
+            } else if (priceCatalogCount > 0) {
+                priceElement.innerHTML = '<span title="No TCGplayer price for this printing and condition">No catalog price</span>';
+                priceElement.classList.remove('d-none');
+            } else {
+                priceElement.textContent = '';
+                priceElement.classList.add('d-none');
             }
         }
 
