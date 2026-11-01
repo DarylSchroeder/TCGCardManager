@@ -2007,7 +2007,7 @@
                 header: true,           // Use first row as column headers
                 skipEmptyLines: true,   // Skip empty rows
                 dynamicTyping: true,    // Auto-convert numbers
-                complete: function(results) {
+                complete: async function(results) {
                     try {
                         let imported = 0;
                         let skipped = 0;
@@ -2107,12 +2107,18 @@
                             }
                         });
                         
+                        const resolvedCount = priceCatalogCount > 0
+                            ? await resolvePendingTCGplayerSkus()
+                            : 0;
                         saveInventoryToStorage();
                         updateInventoryDisplay();
                         bootstrap.Modal.getInstance(document.getElementById('importModal')).hide();
                         
                         const totalValue = inventory.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                        showMessage(`Imported ${imported} cards (skipped ${skipped} with 0 quantity). Total value: $${totalValue.toFixed(2)}`, 'success');
+                        const resolutionNote = resolvedCount
+                            ? ` Resolved TCGplayer pricing for ${resolvedCount} card${resolvedCount === 1 ? '' : 's'} from the loaded catalog.`
+                            : '';
+                        showMessage(`Imported ${imported} cards (skipped ${skipped} with 0 quantity). Total value: $${totalValue.toFixed(2)}.${resolutionNote}`, 'success');
                         
                     } catch (error) {
                         console.error('Import processing error:', error);
@@ -2244,11 +2250,35 @@
         }
 
         function normalizeCatalogNumber(value) {
-            return normalizeCatalogValue(value).replace(/^0+(?=\d)/, '');
+            return normalizeCatalogValue(value)
+                .replace(/p$/i, '')
+                .replace(/^0+(?=\d)/, '');
         }
 
         function catalogMatchKey(setName, number, condition) {
             return [normalizeCatalogValue(setName), normalizeCatalogNumber(number), normalizeCatalogValue(condition)].join('|');
+        }
+
+        function catalogSetNameAliases(setName) {
+            const normalized = normalizeCatalogValue(setName);
+            const aliases = new Set([normalized]);
+            const promoSuffix = normalized.match(/^(.+) promos$/);
+            const promoPrefix = normalized.match(/^promo pack: (.+)$/);
+            const commanderSuffix = normalized.match(/^(.+) commander$/);
+            const commanderPrefix = normalized.match(/^commander: (.+)$/);
+
+            if (promoSuffix) aliases.add(`promo pack: ${promoSuffix[1]}`);
+            if (promoPrefix) aliases.add(`${promoPrefix[1]} promos`);
+            if (commanderSuffix) aliases.add(`commander: ${commanderSuffix[1]}`);
+            if (commanderPrefix) aliases.add(`${commanderPrefix[1]} commander`);
+            return [...aliases];
+        }
+
+        function normalizeCatalogProductName(value) {
+            return normalizeCatalogValue(value)
+                .split(/\s+\/\/\s+/)[0]
+                .replace(/\s*\([^)]*\)\s*$/, '')
+                .trim();
         }
 
         async function writeCatalogBatch(rows, clearFirst) {
@@ -2437,16 +2467,21 @@
         async function findCardPricing(cardName, setName, condition, collectorNumber) {
             try {
                 const db = await openPriceCatalogDb();
-                const candidates = await new Promise((resolve, reject) => {
+                const candidatesBySet = await Promise.all(catalogSetNameAliases(setName).map(alias => new Promise((resolve, reject) => {
                     const index = db.transaction(PRICE_CATALOG_STORE, 'readonly').objectStore(PRICE_CATALOG_STORE).index('matchKey');
-                    const request = index.getAll(IDBKeyRange.only(catalogMatchKey(setName, collectorNumber, condition)));
+                    const request = index.getAll(IDBKeyRange.only(catalogMatchKey(alias, collectorNumber, condition)));
                     request.onsuccess = () => resolve(request.result);
                     request.onerror = () => reject(request.error);
-                });
+                })));
+                const candidates = [...new Map(candidatesBySet.flat().map(row => [row.tcgplayerId, row])).values()];
                 const wantedName = normalizeCatalogValue(cardName);
-                const match = candidates.find(row => normalizeCatalogValue(row.productName) === wantedName) ||
-                    candidates.find(row => normalizeCatalogValue(row.productName).includes(wantedName));
-                return match || null;
+                const exactMatches = candidates.filter(row => normalizeCatalogValue(row.productName) === wantedName);
+                if (exactMatches.length === 1) return exactMatches[0];
+                if (exactMatches.length > 1) return null;
+
+                const normalizedWantedName = normalizeCatalogProductName(cardName);
+                const normalizedMatches = candidates.filter(row => normalizeCatalogProductName(row.productName) === normalizedWantedName);
+                return normalizedMatches.length === 1 ? normalizedMatches[0] : null;
             } catch (error) {
                 console.warn('Price catalog lookup failed:', error);
                 return null;
