@@ -26,6 +26,7 @@
         const universesBeyondPrefix = normalized.match(/^universes beyond: (.+)$/);
         const timeshiftsSuffix = normalized.match(/^(.+) timeshifts$/);
         const lordOfTheRingsSet = normalized.match(/^(the lord of the rings:.+)$/);
+        const brothersWarRetroArtifacts = normalized.match(/^the brothers' war retro artifacts$/);
 
         if (promoSuffix) aliases.add(`promo pack: ${promoSuffix[1]}`);
         if (promoPrefix) aliases.add(`${promoPrefix[1]} promos`);
@@ -34,6 +35,7 @@
         if (universesBeyondPrefix) aliases.add(universesBeyondPrefix[1]);
         if (lordOfTheRingsSet) aliases.add(`universes beyond: ${lordOfTheRingsSet[1]}`);
         if (timeshiftsSuffix) aliases.add(timeshiftsSuffix[1]);
+        if (brothersWarRetroArtifacts) aliases.add("the brothers' war: retro frame artifacts");
         return [...aliases];
     }
 

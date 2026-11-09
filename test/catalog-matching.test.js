@@ -64,4 +64,26 @@ const displaySku = CatalogMatching.findMatchingRow(
 );
 assert.strictEqual(displaySku?.tcgplayerId, '7445816', 'Display of Power #769 foil should resolve despite stacked product suffixes');
 
-console.log('✅ Dragon’s Rage Channeler, Duress condition isolation, and Display of Power SKU matching passed');
+const elsewhereFlaskRows = [
+    {
+        tcgplayerId: '6701211',
+        matchKey: CatalogMatching.matchKey("The Brothers' War: Retro Frame Artifacts", '78', 'Near Mint'),
+        productName: 'Elsewhere Flask (Schematic)'
+    },
+    {
+        tcgplayerId: '6697931',
+        matchKey: CatalogMatching.matchKey("The Brothers' War: Retro Frame Artifacts", '15', 'Near Mint'),
+        productName: 'Elsewhere Flask'
+    }
+];
+for (const [number, expectedSku] of [['78', '6701211'], ['15', '6697931']]) {
+    const keys = CatalogMatching.lookupKeys("The Brothers' War Retro Artifacts", number, 'Near Mint');
+    const candidates = elsewhereFlaskRows.filter(row => keys.includes(row.matchKey));
+    assert.strictEqual(
+        CatalogMatching.findMatchingRow(candidates, 'Elsewhere Flask')?.tcgplayerId,
+        expectedSku,
+        `Elsewhere Flask #${number} should resolve across the Retro Artifacts set-name alias`
+    );
+}
+
+console.log('✅ Catalog SKU matching regressions passed');
