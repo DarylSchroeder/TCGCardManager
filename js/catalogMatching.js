@@ -68,13 +68,5 @@
         return normalizedMatches.length === 1 ? normalizedMatches[0] : null;
     }
 
-    function skuFallbackCondition(condition) {
-        const normalized = normalizeValue(condition);
-        const isFoil = /\s+foil$/.test(normalized);
-        const baseCondition = normalized.replace(/\s+foil$/, '');
-        if (baseCondition === 'near mint') return null;
-        return isFoil ? 'Near Mint Foil' : 'Near Mint';
-    }
-
-    return { normalizeValue, normalizeNumber, matchKey, setNameAliases, lookupKeys, normalizeProductName, findMatchingRow, skuFallbackCondition };
+    return { normalizeValue, normalizeNumber, matchKey, setNameAliases, lookupKeys, normalizeProductName, findMatchingRow };
 });

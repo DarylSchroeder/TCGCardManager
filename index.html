@@ -530,7 +530,7 @@
     <!-- Papa Parse for CSV handling -->
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     <script src="js/pricing.js"></script>
-    <script src="js/catalogMatching.js?v=2"></script>
+    <script src="js/catalogMatching.js?v=3"></script>
 
     <script>
         // Application State
@@ -1211,12 +1211,6 @@
                     condition,
                     selectedCard.collector_number
                 );
-                const skuData = pricingData || await findCardSku(
-                    selectedCard.name,
-                    selectedCard.set_name,
-                    condition,
-                    selectedCard.collector_number
-                );
                 const scryfallMarketPrice = getScryfallMarketPrice(selectedCard, finish);
                 
                 let marketPrice = pricingData ? pricingData.marketPrice : 0;
@@ -1251,12 +1245,11 @@
                         originalPrice
                     }, activePricingStrategy)
                     : originalPrice;
-                const displayName = skuData?.productName || selectedCard.name;
+                const displayName = pricingData?.productName || selectedCard.name;
 
                 if (marketPrice > 0) {
                     const source = pricingData?.marketPrice > 0 ? 'TCGplayer' : 'Scryfall';
-                    const skuNote = !pricingData && skuData ? '; SKU matched from Near Mint catalog row' : '';
-                    console.log(`💰 Added ${selectedCard.name} (${condition}) using ${source} Market $${marketPrice}; listing $${calculatedPrice}${skuNote}`);
+                    console.log(`💰 Added ${selectedCard.name} (${condition}) using ${source} Market $${marketPrice}; listing $${calculatedPrice}`);
                 } else {
                     console.log(`⚠️ No market price found for ${selectedCard.name} (${condition})`);
                 }
@@ -1280,17 +1273,17 @@
                     lowPrice: lowPrice,
                     lowShipping: lowShipping,
                     tcgDirectLow: tcgDirectLow,
-                    rarity: pricingData?.rarity || skuData?.rarity || getTCGPlayerRarity(selectedCard.rarity),
+                    rarity: pricingData?.rarity || getTCGPlayerRarity(selectedCard.rarity),
                     number: selectedCard.collector_number,
                     image: selectedCard.image_uris?.normal || selectedCard.image_uris?.large || '',
                     // TCGplayer seller CSVs require SKU IDs. Scryfall's tcgplayer_id
                     // is a product ID, so never write it into the seller SKU column.
-                    tcgplayerId: skuData?.tcgplayerId || '',
+                    tcgplayerId: pricingData?.tcgplayerId || '',
                     tcgplayerProductId: selectedCard.tcgplayer_id || '',
-                    tcgProductName: skuData?.productName || '',
-                    tcgSetName: skuData?.setName || '',
-                    tcgNumber: skuData?.number || '',
-                    tcgProductLine: skuData?.productLine || 'Magic',
+                    tcgProductName: pricingData?.productName || '',
+                    tcgSetName: pricingData?.setName || '',
+                    tcgNumber: pricingData?.number || '',
+                    tcgProductLine: pricingData?.productLine || 'Magic',
                     productLine: 'Magic',
                     // TCGplayer's My Pricing CSV leaves Title blank; Product Name carries the card name.
                     title: '',
@@ -1574,7 +1567,7 @@
                 reasons.push(item.pricingReviewReason || 'TCG Low is missing; review this price before listing.');
             }
             if (!item.tcgplayerId) {
-                reasons.push('TCGplayer SKU is unresolved. Load a TCGplayer catalog CSV and match this printing and finish before exporting.');
+                reasons.push(`No TCGplayer SKU was found for ${item.condition || 'this condition'}. Match this exact printing and condition before exporting.`);
             }
             if (typeof isBelowMarketGuardrail === 'function' && isBelowMarketGuardrail(item)) {
                 const allowedDiscount = Math.min(marketPrice * 0.05, 0.50);
@@ -2180,7 +2173,7 @@
 
             const unresolvedSkuItems = exportableInventory.filter(item => !item.tcgplayerId);
             if (unresolvedSkuItems.length) {
-                const preview = unresolvedSkuItems.slice(0, 3).map(item => item.name).join(', ');
+                const preview = unresolvedSkuItems.slice(0, 3).map(item => `${item.name} (${item.condition || 'condition unknown'})`).join(', ');
                 const more = unresolvedSkuItems.length > 3 ? ', …' : '';
                 showMessage(
                     `${unresolvedSkuItems.length} card${unresolvedSkuItems.length === 1 ? '' : 's'} need a TCGplayer SKU before export: ${preview}${more}. Load the TCGplayer catalog CSV, then export again.`,
@@ -2480,12 +2473,6 @@
             return findCardCatalogRow(cardName, setName, condition, collectorNumber);
         }
 
-        async function findCardSku(cardName, setName, condition, collectorNumber) {
-            const fallbackCondition = TCGCatalogMatching.skuFallbackCondition(condition);
-            if (!fallbackCondition) return null;
-            return findCardCatalogRow(cardName, setName, fallbackCondition, collectorNumber);
-        }
-
         async function updateSearchCardPrice(cardName) {
             const cleanName = cardName.replace(/[^a-zA-Z0-9]/g, '');
             const priceElement = document.getElementById(`search-price-${cleanName}`);
@@ -2532,22 +2519,19 @@
             let resolvedCount = 0;
             for (const item of inventory) {
                 const pricingData = await findCardPricing(item.identityName || item.name, item.set, item.condition, item.number);
-                const skuData = pricingData || await findCardSku(item.identityName || item.name, item.set, item.condition, item.number);
-                if (!skuData?.tcgplayerId) continue;
+                if (!pricingData?.tcgplayerId) continue;
 
-                const skuChanged = item.tcgplayerId !== skuData.tcgplayerId;
-                item.tcgplayerId = skuData.tcgplayerId;
-                item.tcgProductName = skuData.productName;
-                item.tcgSetName = skuData.setName;
-                item.tcgNumber = skuData.number;
-                item.tcgProductLine = skuData.productLine;
-                item.rarity = skuData.rarity || item.rarity;
-                if (pricingData) {
-                    item.marketPrice = pricingData.marketPrice || item.marketPrice;
-                    item.lowPrice = pricingData.lowPrice;
-                    item.lowShipping = pricingData.lowShipping;
-                    item.tcgDirectLow = pricingData.tcgDirectLow;
-                }
+                const skuChanged = item.tcgplayerId !== pricingData.tcgplayerId;
+                item.tcgplayerId = pricingData.tcgplayerId;
+                item.tcgProductName = pricingData.productName;
+                item.tcgSetName = pricingData.setName;
+                item.tcgNumber = pricingData.number;
+                item.tcgProductLine = pricingData.productLine;
+                item.rarity = pricingData.rarity || item.rarity;
+                item.marketPrice = pricingData.marketPrice || item.marketPrice;
+                item.lowPrice = pricingData.lowPrice;
+                item.lowShipping = pricingData.lowShipping;
+                item.tcgDirectLow = pricingData.tcgDirectLow;
 
                 if (item.lowPrice > 0) {
                     const originalPrice = Number(item.originalPrice || item.marketPrice || item.price || 0);

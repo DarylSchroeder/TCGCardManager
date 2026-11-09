@@ -31,21 +31,25 @@ function lookup(condition) {
 assert.strictEqual(lookup('Near Mint')?.tcgplayerId, '7928549', 'nonfoil Timeshifts #9 should resolve to its SKU');
 assert.strictEqual(lookup('Near Mint Foil')?.tcgplayerId, '7928554', 'foil Timeshifts #9 should resolve to its SKU');
 
-// The catalog export has one SKU row for Duress #132 in Near Mint condition.
-// Inventory conditions such as Lightly Played use the same SKU for that finish.
+// The catalog export has only a Near Mint row for Duress #132. It must not be
+// reused for a Lightly Played copy, since TCGplayer may assign different SKUs.
 const duressCatalogRow = {
     tcgplayerId: '20334',
     matchKey: CatalogMatching.matchKey("Urza's Saga", '132', 'Near Mint'),
     productName: 'Duress'
 };
-const duressFallbackCondition = CatalogMatching.skuFallbackCondition('Lightly Played');
-const duressLookupKeys = CatalogMatching.lookupKeys("Urza's Saga", '132', duressFallbackCondition);
-const duressSku = CatalogMatching.findMatchingRow(
-    duressLookupKeys.includes(duressCatalogRow.matchKey) ? [duressCatalogRow] : [],
-    'Duress'
+const duressNearMintKeys = CatalogMatching.lookupKeys("Urza's Saga", '132', 'Near Mint');
+const duressLightlyPlayedKeys = CatalogMatching.lookupKeys("Urza's Saga", '132', 'Lightly Played');
+assert.strictEqual(
+    CatalogMatching.findMatchingRow(duressNearMintKeys.includes(duressCatalogRow.matchKey) ? [duressCatalogRow] : [], 'Duress')?.tcgplayerId,
+    '20334',
+    'Near Mint Duress #132 should resolve to its exact-condition SKU'
 );
-assert.strictEqual(duressSku?.tcgplayerId, '20334', 'Lightly Played Duress #132 should reuse its Near Mint SKU');
-assert.strictEqual(CatalogMatching.skuFallbackCondition('Lightly Played Foil'), 'Near Mint Foil', 'foil conditions should retain foil SKU matching');
+assert.strictEqual(
+    CatalogMatching.findMatchingRow(duressLightlyPlayedKeys.includes(duressCatalogRow.matchKey) ? [duressCatalogRow] : [], 'Duress'),
+    null,
+    'Lightly Played Duress #132 must stay unresolved when only a Near Mint SKU exists'
+);
 
 // The foil #769 catalog name carries two nested product-variant suffixes.
 const displayOfPowerRow = {
@@ -60,4 +64,4 @@ const displaySku = CatalogMatching.findMatchingRow(
 );
 assert.strictEqual(displaySku?.tcgplayerId, '7445816', 'Display of Power #769 foil should resolve despite stacked product suffixes');
 
-console.log('✅ Dragon’s Rage Channeler, Duress, and Display of Power SKU matching passed');
+console.log('✅ Dragon’s Rage Channeler, Duress condition isolation, and Display of Power SKU matching passed');
