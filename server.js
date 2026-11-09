@@ -206,8 +206,10 @@ const server = http.createServer((req, res) => {
         return;
     }
     
-    // Normalize URL
-    let filePath = path.join(__dirname, req.url === '/' ? 'index.html' : req.url);
+    // Ignore query parameters when resolving static file paths (for example,
+    // cache-busted script URLs such as catalogMatching.js?v=2).
+    const pathname = new URL(req.url, 'http://localhost').pathname;
+    let filePath = path.join(__dirname, pathname === '/' ? 'index.html' : pathname);
     
     // Get file extension
     const extname = String(path.extname(filePath)).toLowerCase();
