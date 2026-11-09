@@ -1975,12 +1975,12 @@
 
                 const previousInventory = JSON.parse(cachedInventory);
                 if (!Array.isArray(previousInventory)) throw new Error('Saved inventory is not a list');
-                const clearInventory = window.confirm('Detected previously saved inventory. Do you want to clear it? Choose Cancel to keep it.');
-                if (clearInventory) {
+                const useCachedInventory = window.confirm('Saved inventory cache found. Use it?');
+                if (useCachedInventory) {
+                    inventory = previousInventory;
+                } else {
                     localStorage.removeItem('tcg_inventory_v2');
                     inventory = [];
-                } else {
-                    inventory = previousInventory;
                 }
             } catch (error) {
                 console.warn('Could not load saved inventory:', error);
