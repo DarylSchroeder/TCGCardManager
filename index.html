@@ -2140,7 +2140,7 @@
             });
         }
 
-        function exportInventory() {
+        async function exportInventory() {
             if (inventory.length === 0) {
                 showMessage('No inventory to export', 'warning');
                 return;
@@ -2152,6 +2152,14 @@
             if (exportableInventory.length === 0) {
                 showMessage('No cards with quantity > 0 to export', 'warning');
                 return;
+            }
+
+            // Retry against the local catalog at export time. This also covers
+            // rows added before the catalog finished loading or with a missed
+            // match during the initial add operation.
+            if (priceCatalogCount > 0) {
+                await resolvePendingTCGplayerSkus();
+                saveInventoryToStorage();
             }
 
             const unresolvedSkuItems = exportableInventory.filter(item => !item.tcgplayerId);
@@ -2274,11 +2282,15 @@
             const promoPrefix = normalized.match(/^promo pack: (.+)$/);
             const commanderSuffix = normalized.match(/^(.+) commander$/);
             const commanderPrefix = normalized.match(/^commander: (.+)$/);
+            const universesBeyondPrefix = normalized.match(/^universes beyond: (.+)$/);
 
-            if (promoSuffix) aliases.add(`promo pack: ${promoSuffix[1]}`);
+            if (promoSuffix) {
+                aliases.add(`promo pack: ${promoSuffix[1]}`);
+            }
             if (promoPrefix) aliases.add(`${promoPrefix[1]} promos`);
             if (commanderSuffix) aliases.add(`commander: ${commanderSuffix[1]}`);
             if (commanderPrefix) aliases.add(`${commanderPrefix[1]} commander`);
+            if (universesBeyondPrefix) aliases.add(universesBeyondPrefix[1]);
             return [...aliases];
         }
 
@@ -2475,12 +2487,21 @@
         async function findCardPricing(cardName, setName, condition, collectorNumber) {
             try {
                 const db = await openPriceCatalogDb();
-                const candidatesBySet = await Promise.all(catalogSetNameAliases(setName).map(alias => new Promise((resolve, reject) => {
-                    const index = db.transaction(PRICE_CATALOG_STORE, 'readonly').objectStore(PRICE_CATALOG_STORE).index('matchKey');
-                    const request = index.getAll(IDBKeyRange.only(catalogMatchKey(alias, collectorNumber, condition)));
-                    request.onsuccess = () => resolve(request.result);
-                    request.onerror = () => reject(request.error);
-                })));
+                // Older imported catalogs kept promo suffixes such as `184p`
+                // in their index keys. Query that legacy key as well as the
+                // normalized number so users don't need to re-import the CSV.
+                const candidatesBySet = await Promise.all(catalogSetNameAliases(setName).flatMap(alias => {
+                    const keys = new Set([
+                        catalogMatchKey(alias, collectorNumber, condition),
+                        [normalizeCatalogValue(alias), normalizeCatalogValue(collectorNumber).replace(/^0+(?=\d)/, ''), normalizeCatalogValue(condition)].join('|')
+                    ]);
+                    return [...keys].map(key => new Promise((resolve, reject) => {
+                        const index = db.transaction(PRICE_CATALOG_STORE, 'readonly').objectStore(PRICE_CATALOG_STORE).index('matchKey');
+                        const request = index.getAll(IDBKeyRange.only(key));
+                        request.onsuccess = () => resolve(request.result);
+                        request.onerror = () => reject(request.error);
+                    }));
+                }));
                 const candidates = [...new Map(candidatesBySet.flat().map(row => [row.tcgplayerId, row])).values()];
                 const wantedName = normalizeCatalogValue(cardName);
                 const exactMatches = candidates.filter(row => normalizeCatalogValue(row.productName) === wantedName);
@@ -2541,7 +2562,7 @@
         async function resolvePendingTCGplayerSkus() {
             let resolvedCount = 0;
             for (const item of inventory) {
-                const pricingData = await findCardPricing(item.name, item.set, item.condition, item.number);
+                const pricingData = await findCardPricing(item.identityName || item.name, item.set, item.condition, item.number);
                 if (!pricingData?.tcgplayerId) continue;
 
                 const skuChanged = item.tcgplayerId !== pricingData.tcgplayerId;

@@ -6,7 +6,7 @@ function normalize(value) {
 }
 
 function normalizeNumber(value) {
-    return normalize(value).replace(/^0+(?=\d)/, '');
+    return normalize(value).replace(/p$/i, '').replace(/^0+(?=\d)/, '');
 }
 
 self.onmessage = event => {
