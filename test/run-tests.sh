@@ -32,6 +32,18 @@ else
 fi
 
 echo ""
+echo "🃏 Running Catalog Matching Tests..."
+echo "----------------------------------"
+if node test/catalog-matching.test.js; then
+    echo ""
+    echo "✅ Catalog Matching Tests: PASSED"
+else
+    echo ""
+    echo "❌ Catalog Matching Tests: FAILED"
+    exit 1
+fi
+
+echo ""
 echo "💰 Running Pricing Tests..."
 echo "---------------------------"
 
