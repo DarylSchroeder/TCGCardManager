@@ -47,4 +47,17 @@ const duressSku = CatalogMatching.findMatchingRow(
 assert.strictEqual(duressSku?.tcgplayerId, '20334', 'Lightly Played Duress #132 should reuse its Near Mint SKU');
 assert.strictEqual(CatalogMatching.skuFallbackCondition('Lightly Played Foil'), 'Near Mint Foil', 'foil conditions should retain foil SKU matching');
 
-console.log('✅ Dragon’s Rage Channeler and Duress condition SKU matching passed');
+// The foil #769 catalog name carries two nested product-variant suffixes.
+const displayOfPowerRow = {
+    tcgplayerId: '7445816',
+    matchKey: CatalogMatching.matchKey('Universes Beyond: The Lord of the Rings: Tales of Middle-earth', '769', 'Near Mint Foil'),
+    productName: 'Display of Power (Extended Art) (Surge Foil)'
+};
+const displayKeys = CatalogMatching.lookupKeys('The Lord of the Rings: Tales of Middle-earth', '769', 'Near Mint Foil');
+const displaySku = CatalogMatching.findMatchingRow(
+    displayKeys.includes(displayOfPowerRow.matchKey) ? [displayOfPowerRow] : [],
+    'Display of Power'
+);
+assert.strictEqual(displaySku?.tcgplayerId, '7445816', 'Display of Power #769 foil should resolve despite stacked product suffixes');
+
+console.log('✅ Dragon’s Rage Channeler, Duress, and Display of Power SKU matching passed');

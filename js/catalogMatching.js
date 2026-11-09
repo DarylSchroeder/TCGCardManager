@@ -25,12 +25,14 @@
         const commanderPrefix = normalized.match(/^commander: (.+)$/);
         const universesBeyondPrefix = normalized.match(/^universes beyond: (.+)$/);
         const timeshiftsSuffix = normalized.match(/^(.+) timeshifts$/);
+        const lordOfTheRingsSet = normalized.match(/^(the lord of the rings:.+)$/);
 
         if (promoSuffix) aliases.add(`promo pack: ${promoSuffix[1]}`);
         if (promoPrefix) aliases.add(`${promoPrefix[1]} promos`);
         if (commanderSuffix) aliases.add(`commander: ${commanderSuffix[1]}`);
         if (commanderPrefix) aliases.add(`${commanderPrefix[1]} commander`);
         if (universesBeyondPrefix) aliases.add(universesBeyondPrefix[1]);
+        if (lordOfTheRingsSet) aliases.add(`universes beyond: ${lordOfTheRingsSet[1]}`);
         if (timeshiftsSuffix) aliases.add(timeshiftsSuffix[1]);
         return [...aliases];
     }
@@ -47,10 +49,11 @@
     }
 
     function normalizeProductName(value) {
-        return normalizeValue(value)
-            .split(/\s+\/\/\s+/)[0]
-            .replace(/\s*\([^)]*\)\s*$/, '')
-            .trim();
+        let normalized = normalizeValue(value).split(/\s+\/\/\s+/)[0].trim();
+        while (/\s*\([^)]*\)\s*$/.test(normalized)) {
+            normalized = normalized.replace(/\s*\([^)]*\)\s*$/, '').trim();
+        }
+        return normalized;
     }
 
     function findMatchingRow(candidates, cardName) {
