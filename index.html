@@ -2283,6 +2283,7 @@
             const commanderSuffix = normalized.match(/^(.+) commander$/);
             const commanderPrefix = normalized.match(/^commander: (.+)$/);
             const universesBeyondPrefix = normalized.match(/^universes beyond: (.+)$/);
+            const timeshiftsSuffix = normalized.match(/^(.+) timeshifts$/);
 
             if (promoSuffix) {
                 aliases.add(`promo pack: ${promoSuffix[1]}`);
@@ -2291,6 +2292,7 @@
             if (commanderSuffix) aliases.add(`commander: ${commanderSuffix[1]}`);
             if (commanderPrefix) aliases.add(`${commanderPrefix[1]} commander`);
             if (universesBeyondPrefix) aliases.add(universesBeyondPrefix[1]);
+            if (timeshiftsSuffix) aliases.add(timeshiftsSuffix[1]);
             return [...aliases];
         }
 
