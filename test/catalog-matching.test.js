@@ -31,4 +31,20 @@ function lookup(condition) {
 assert.strictEqual(lookup('Near Mint')?.tcgplayerId, '7928549', 'nonfoil Timeshifts #9 should resolve to its SKU');
 assert.strictEqual(lookup('Near Mint Foil')?.tcgplayerId, '7928554', 'foil Timeshifts #9 should resolve to its SKU');
 
-console.log('✅ Dragon’s Rage Channeler Timeshifts foil/nonfoil SKU matching passed');
+// The catalog export has one SKU row for Duress #132 in Near Mint condition.
+// Inventory conditions such as Lightly Played use the same SKU for that finish.
+const duressCatalogRow = {
+    tcgplayerId: '20334',
+    matchKey: CatalogMatching.matchKey("Urza's Saga", '132', 'Near Mint'),
+    productName: 'Duress'
+};
+const duressFallbackCondition = CatalogMatching.skuFallbackCondition('Lightly Played');
+const duressLookupKeys = CatalogMatching.lookupKeys("Urza's Saga", '132', duressFallbackCondition);
+const duressSku = CatalogMatching.findMatchingRow(
+    duressLookupKeys.includes(duressCatalogRow.matchKey) ? [duressCatalogRow] : [],
+    'Duress'
+);
+assert.strictEqual(duressSku?.tcgplayerId, '20334', 'Lightly Played Duress #132 should reuse its Near Mint SKU');
+assert.strictEqual(CatalogMatching.skuFallbackCondition('Lightly Played Foil'), 'Near Mint Foil', 'foil conditions should retain foil SKU matching');
+
+console.log('✅ Dragon’s Rage Channeler and Duress condition SKU matching passed');

@@ -74,8 +74,8 @@
         }
 
         .search-result-image {
-            width: 68px;
-            max-height: 96px;
+            width: 108px;
+            max-height: 152px;
             object-fit: cover;
             border-radius: 4px;
             cursor: pointer;
@@ -703,6 +703,12 @@
                 .replace(/"/g, '&quot;');
         }
 
+        function getSearchResultImage(card) {
+            return card.image_uris?.large || card.card_faces?.[0]?.image_uris?.large ||
+                card.image_uris?.normal || card.card_faces?.[0]?.image_uris?.normal ||
+                card.image_uris?.small || card.card_faces?.[0]?.image_uris?.small || '';
+        }
+
         async function searchCards() {
             const query = document.getElementById('searchInput').value.trim();
             if (!query) {
@@ -795,7 +801,7 @@
                 const defaultCollectorNumber = Object.keys(defaultCollectorGroups)[0];
                 const defaultCard = getRepresentativeCard(defaultCollectorGroups[defaultCollectorNumber]);
 
-                const imageUrl = defaultCard.image_uris?.small || defaultCard.card_faces?.[0]?.image_uris?.small || '';
+                const imageUrl = getSearchResultImage(defaultCard);
                 return `
                     <div class="col">
                         <div class="card h-100 search-result-card">
@@ -1071,7 +1077,7 @@
             const selectedCollectorId = document.getElementById(`collector-${cleanName}`)?.value;
             const selectedCard = window.allSearchResults.find(c => c.id === selectedCollectorId) || card;
             const imgElement = document.getElementById(`card-image-${cleanName}`);
-            const cardImage = selectedCard.image_uris?.small || selectedCard.card_faces?.[0]?.image_uris?.small;
+            const cardImage = getSearchResultImage(selectedCard);
             if (imgElement && cardImage) {
                 imgElement.src = cardImage;
                 imgElement.onclick = () => showLargeCardView(selectedCard.id);
@@ -1090,7 +1096,7 @@
             
             // Update card image
             const imgElement = document.getElementById(`card-image-${cleanName}`);
-            const cardImage = card.image_uris?.small || card.card_faces?.[0]?.image_uris?.small;
+            const cardImage = getSearchResultImage(card);
             if (imgElement && cardImage) {
                 imgElement.src = cardImage;
                 imgElement.onclick = () => showLargeCardView(card.id);
@@ -1204,6 +1210,12 @@
                     condition,
                     selectedCard.collector_number
                 );
+                const skuData = pricingData || await findCardSku(
+                    selectedCard.name,
+                    selectedCard.set_name,
+                    condition,
+                    selectedCard.collector_number
+                );
                 const scryfallMarketPrice = getScryfallMarketPrice(selectedCard, finish);
                 
                 let marketPrice = pricingData ? pricingData.marketPrice : 0;
@@ -1238,10 +1250,12 @@
                         originalPrice
                     }, activePricingStrategy)
                     : originalPrice;
-                const displayName = pricingData?.productName || selectedCard.name;
+                const displayName = skuData?.productName || selectedCard.name;
 
                 if (marketPrice > 0) {
-                    console.log(`💰 Added ${selectedCard.name} (${condition}) using ${pricingData?.marketPrice > 0 ? 'TCGplayer' : 'Scryfall'} Market $${marketPrice}; listing $${calculatedPrice}`);
+                    const source = pricingData?.marketPrice > 0 ? 'TCGplayer' : 'Scryfall';
+                    const skuNote = !pricingData && skuData ? '; SKU matched from Near Mint catalog row' : '';
+                    console.log(`💰 Added ${selectedCard.name} (${condition}) using ${source} Market $${marketPrice}; listing $${calculatedPrice}${skuNote}`);
                 } else {
                     console.log(`⚠️ No market price found for ${selectedCard.name} (${condition})`);
                 }
@@ -1265,17 +1279,17 @@
                     lowPrice: lowPrice,
                     lowShipping: lowShipping,
                     tcgDirectLow: tcgDirectLow,
-                    rarity: pricingData?.rarity || getTCGPlayerRarity(selectedCard.rarity),
+                    rarity: pricingData?.rarity || skuData?.rarity || getTCGPlayerRarity(selectedCard.rarity),
                     number: selectedCard.collector_number,
                     image: selectedCard.image_uris?.normal || selectedCard.image_uris?.large || '',
                     // TCGplayer seller CSVs require SKU IDs. Scryfall's tcgplayer_id
                     // is a product ID, so never write it into the seller SKU column.
-                    tcgplayerId: pricingData?.tcgplayerId || '',
+                    tcgplayerId: skuData?.tcgplayerId || '',
                     tcgplayerProductId: selectedCard.tcgplayer_id || '',
-                    tcgProductName: pricingData?.productName || '',
-                    tcgSetName: pricingData?.setName || '',
-                    tcgNumber: pricingData?.number || '',
-                    tcgProductLine: pricingData?.productLine || 'Magic',
+                    tcgProductName: skuData?.productName || '',
+                    tcgSetName: skuData?.setName || '',
+                    tcgNumber: skuData?.number || '',
+                    tcgProductLine: skuData?.productLine || 'Magic',
                     productLine: 'Magic',
                     // TCGplayer's My Pricing CSV leaves Title blank; Product Name carries the card name.
                     title: '',
@@ -2445,7 +2459,7 @@
             }
         }
 
-        async function findCardPricing(cardName, setName, condition, collectorNumber) {
+        async function findCardCatalogRow(cardName, setName, condition, collectorNumber) {
             try {
                 const db = await openPriceCatalogDb();
                 const candidatesByKey = await Promise.all(TCGCatalogMatching.lookupKeys(setName, collectorNumber, condition).map(key => new Promise((resolve, reject) => {
@@ -2459,6 +2473,16 @@
                 console.warn('Price catalog lookup failed:', error);
                 return null;
             }
+        }
+
+        async function findCardPricing(cardName, setName, condition, collectorNumber) {
+            return findCardCatalogRow(cardName, setName, condition, collectorNumber);
+        }
+
+        async function findCardSku(cardName, setName, condition, collectorNumber) {
+            const fallbackCondition = TCGCatalogMatching.skuFallbackCondition(condition);
+            if (!fallbackCondition) return null;
+            return findCardCatalogRow(cardName, setName, fallbackCondition, collectorNumber);
         }
 
         async function updateSearchCardPrice(cardName) {
@@ -2507,19 +2531,22 @@
             let resolvedCount = 0;
             for (const item of inventory) {
                 const pricingData = await findCardPricing(item.identityName || item.name, item.set, item.condition, item.number);
-                if (!pricingData?.tcgplayerId) continue;
+                const skuData = pricingData || await findCardSku(item.identityName || item.name, item.set, item.condition, item.number);
+                if (!skuData?.tcgplayerId) continue;
 
-                const skuChanged = item.tcgplayerId !== pricingData.tcgplayerId;
-                item.tcgplayerId = pricingData.tcgplayerId;
-                item.tcgProductName = pricingData.productName;
-                item.tcgSetName = pricingData.setName;
-                item.tcgNumber = pricingData.number;
-                item.tcgProductLine = pricingData.productLine;
-                item.rarity = pricingData.rarity || item.rarity;
-                item.marketPrice = pricingData.marketPrice || item.marketPrice;
-                item.lowPrice = pricingData.lowPrice;
-                item.lowShipping = pricingData.lowShipping;
-                item.tcgDirectLow = pricingData.tcgDirectLow;
+                const skuChanged = item.tcgplayerId !== skuData.tcgplayerId;
+                item.tcgplayerId = skuData.tcgplayerId;
+                item.tcgProductName = skuData.productName;
+                item.tcgSetName = skuData.setName;
+                item.tcgNumber = skuData.number;
+                item.tcgProductLine = skuData.productLine;
+                item.rarity = skuData.rarity || item.rarity;
+                if (pricingData) {
+                    item.marketPrice = pricingData.marketPrice || item.marketPrice;
+                    item.lowPrice = pricingData.lowPrice;
+                    item.lowShipping = pricingData.lowShipping;
+                    item.tcgDirectLow = pricingData.tcgDirectLow;
+                }
 
                 if (item.lowPrice > 0) {
                     const originalPrice = Number(item.originalPrice || item.marketPrice || item.price || 0);
