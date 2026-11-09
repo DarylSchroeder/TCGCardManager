@@ -37,7 +37,7 @@ Scryfall's `tcgplayer_id` is a product ID. TCGplayer seller CSV's `TCGplayer Id`
 
 For TCGplayer imports from `FINAL FANTASY: Through the Ages`, the canonical identity used for sorting and matching comes from the suffix of TCGplayer's alternate-name product title (for example, `Squall Leonhart - Danitha Capashen, Paragon (Showcase)` sorts as `Danitha Capashen, Paragon`). The visible name and original TCGplayer Product Name are retained and exported unchanged.
 
-Inventory is session-only: it is cleared on page startup and is not saved to localStorage, so import the current inventory CSV after each reload. The selected strategy is stored in `tcg_pricing_strategy`; the compact TCGplayer price catalog is stored in IndexedDB and persists across reloads.
+Inventory is saved in localStorage under `tcg_inventory_v2`. On reload, the app asks whether to clear previously saved inventory or keep it; choosing clear removes the saved cache, while choosing keep restores it. The selected strategy is stored in `tcg_pricing_strategy`; the compact TCGplayer price catalog is stored in IndexedDB and persists across reloads.
 
 The inventory view can hide rows whose current listing price is below `$0.51`, `$1`, `$2`, or `$5`. This is a display filter only: hidden rows remain in inventory, are included in CSV exports, and are unaffected by bulk actions in the filtered view.
 

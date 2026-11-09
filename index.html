@@ -692,6 +692,16 @@
             addCardToInventory(cardName, event.shiftKey ? 'foil' : 'normal');
         }
 
+        // Card names can contain apostrophes, quotes, and other characters that
+        // must remain a single JavaScript argument inside generated event markup.
+        function inlineJsArg(value) {
+            return JSON.stringify(String(value))
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
         async function searchCards() {
             const query = document.getElementById('searchInput').value.trim();
             if (!query) {
@@ -802,7 +812,7 @@
                             <div class="card-body">
                                 <div class="d-flex gap-3 align-items-start mb-3">
                                     <img src="${imageUrl}" alt="${cardName}"
-                                         class="search-result-image" onclick="showLargeCardView('${defaultCard.id}')"
+                                         class="search-result-image" onclick="showLargeCardView(${inlineJsArg(defaultCard.id)})"
                                          id="card-image-${cleanName}">
                                     <div class="min-w-0 flex-fill">
                                         <div class="search-result-heading">
@@ -818,8 +828,8 @@
                                     <div class="col-7">
                                         <label for="set-${cleanName}" class="form-label small mb-1">Set</label>
                                         <select class="form-select form-select-sm" id="set-${cleanName}"
-                                                onchange="updateCardVersion('${cardName}', this.value)"
-                                                onkeydown="handleSearchResultEnter(event, '${cardName}')">
+                                                onchange="updateCardVersion(${inlineJsArg(cardName)}, this.value)"
+                                                onkeydown="handleSearchResultEnter(event, ${inlineJsArg(cardName)})">
                                             ${generateSetDropdown(cardName, setGroups)}
                                         </select>
                                     </div>
@@ -834,15 +844,15 @@
                                         <input type="number" id="quantity-${cleanName}" class="form-control form-control-sm"
                                                value="1" min="1" step="1" inputmode="numeric"
                                                aria-label="Quantity to add for ${cardName}"
-                                               onkeydown="handleSearchResultEnter(event, '${cardName}')">
+                                               onkeydown="handleSearchResultEnter(event, ${inlineJsArg(cardName)})">
                                     </div>
-                                    <button class="btn btn-outline-primary btn-sm flex-fill" onclick="addCardToInventory('${cardName}', 'normal')">Add Nonfoil</button>
-                                    <button class="btn btn-outline-warning btn-sm flex-fill" onclick="addCardToInventory('${cardName}', 'foil')">Add Foil</button>
+                                    <button class="btn btn-outline-primary btn-sm flex-fill" onclick="addCardToInventory(${inlineJsArg(cardName)}, 'normal')">Add Nonfoil</button>
+                                    <button class="btn btn-outline-warning btn-sm flex-fill" onclick="addCardToInventory(${inlineJsArg(cardName)}, 'foil')">Add Foil</button>
                                 </div>
                                 <small class="text-muted d-block mb-2">Enter adds nonfoil · Shift+Enter adds foil</small>
                                 <label for="condition-${cleanName}" class="form-label small mb-1">Condition</label>
                                 <select class="form-select form-select-sm condition-select" id="condition-${cleanName}"
-                                        onchange="updateSearchCardPrice('${cardName}')">
+                                        onchange="updateSearchCardPrice(${inlineJsArg(cardName)})">
                                     <option value="Near Mint">Near Mint</option>
                                     <option value="Lightly Played">Lightly Played</option>
                                     <option value="Moderately Played">Moderately Played</option>
@@ -1936,7 +1946,11 @@
 
         // Storage functions
         function saveInventoryToStorage() {
-            // Inventory is intentionally session-only so reloads require a fresh CSV import.
+            try {
+                localStorage.setItem('tcg_inventory_v2', JSON.stringify(inventory));
+            } catch (error) {
+                console.warn('Could not save inventory:', error);
+            }
         }
 
         function loadPricingStrategy() {
@@ -1956,11 +1970,25 @@
         }
 
         function loadInventoryFromStorage() {
-            inventory = [];
             try {
-                localStorage.removeItem('tcg_inventory_v2');
+                const cachedInventory = localStorage.getItem('tcg_inventory_v2');
+                if (!cachedInventory) {
+                    inventory = [];
+                    return;
+                }
+
+                const previousInventory = JSON.parse(cachedInventory);
+                if (!Array.isArray(previousInventory)) throw new Error('Saved inventory is not a list');
+                const clearInventory = window.confirm('Detected previously saved inventory. Do you want to clear it? Choose Cancel to keep it.');
+                if (clearInventory) {
+                    localStorage.removeItem('tcg_inventory_v2');
+                    inventory = [];
+                } else {
+                    inventory = previousInventory;
+                }
             } catch (error) {
-                console.warn('Could not clear the old inventory cache:', error);
+                console.warn('Could not load saved inventory:', error);
+                inventory = [];
             }
         }
 
